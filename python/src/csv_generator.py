@@ -15,10 +15,10 @@ ws_path = '/home/docker/tree_landing_eda'
 inputs_path = f'{ws_path}/data/inputs'
 outputs_path = f'{ws_path}/data/outputs'
 
-def pixel_to_map(_u, _v):
+def pixel_to_map(_u, _v, _idx):
     pix = np.array([_u, _v, 1, 1])
     TZKinv = np.loadtxt(
-        f'{inputs_path}/TZKinv.txt',
+        f'{inputs_path}/TZKinv_{_idx}.txt',
         dtype=np.float64,  # Force 64-bit precision
         delimiter=None,     # Auto-detect whitespace
         ndmin=2            # Ensure 2D even if file has 1 row
@@ -31,15 +31,15 @@ def pixel_to_map(_u, _v):
 
     return map
 
-def compute_target(_boxes):
+def compute_target(_boxes, _idx):
     max_area_idx = _boxes["area"].idxmax()
     center_x = int(_boxes.loc[max_area_idx, "x"])
     center_y = int(_boxes.loc[max_area_idx, "y"])
 
-    max_corner = pixel_to_map(_boxes.loc[max_area_idx, "xmax"], _boxes.loc[max_area_idx, "ymax"])
-    min_corner = pixel_to_map(_boxes.loc[max_area_idx, "xmin"], _boxes.loc[max_area_idx, "ymin"])
+    max_corner = pixel_to_map(_boxes.loc[max_area_idx, "xmax"], _boxes.loc[max_area_idx, "ymax"], _idx)
+    min_corner = pixel_to_map(_boxes.loc[max_area_idx, "xmin"], _boxes.loc[max_area_idx, "ymin"], _idx)
 
-    center = pixel_to_map(center_x, center_y)
+    center = pixel_to_map(center_x, center_y, _idx)
     width = max_corner[0] - min_corner[0]
     height = max_corner[1] - min_corner[1]
     smallest_side = min(width, height)
@@ -64,7 +64,7 @@ def compute_target(_boxes):
 
 def add_deepforest(_df, _idx):
     boxes_csv = pd.read_csv(f"{inputs_path}/boxes_{_idx}.csv")
-    df_deepforest = compute_target(boxes_csv)
+    df_deepforest = compute_target(boxes_csv, _idx)
     return pd.concat([_df, df_deepforest])
 
 def extract_rising_edges(_timestamps, _signal, _threshold):
@@ -139,7 +139,7 @@ def run_ardulog(_filepath_mockup, _filepath_drone):
     coord_home = np.array([dfs_drone['ORGN']['Lng'], dfs_drone['ORGN']['Lat'], dfs_drone['ORGN']['Alt']])
     coord_home = coord_home.T[-1]
 
-    ### Extract landing positions###
+    ### Extract landing positions ###
     THRESHOLD = 1200
     landing_timestamps_s = extract_rising_edges(dfs_mockup['RCIN']['timestamp'], dfs_mockup['RCIN']['C5'], THRESHOLD)
     landing_timestamps_f = extract_rising_edges(dfs_mockup['RCIN']['timestamp'], dfs_mockup['RCIN']['C6'], THRESHOLD)
@@ -174,6 +174,8 @@ def run_ardulog(_filepath_mockup, _filepath_drone):
 
 def add_ardulog(_df, _idx):
     df = _df.copy()
+
+    #TODO
     local_coords_s, local_coords_f = run_ardulog(
         Path(__file__).parent / f'{inputs_path}/log_1_2025-3-6-15-17-46.bin',
         Path(__file__).parent / f'{inputs_path}/log_1_2025-3-6-15-17-46.bin'
@@ -228,17 +230,20 @@ def add_pcl(_df, _idx):
     df_pcl = pd.DataFrame(pcl_data)
     return pd.concat([_df, df_pcl], axis=1)
 
-def main():
-    for i in range(0,2):
-        specie = 'birch'
+def generate_csv(_species: list[str]=[]):
+    for i in range(0,len(_species)):
         df = pd.DataFrame()
         df = add_deepforest(df, i)
         df = add_ardulog(df, i)
         df = add_pcl(df, i)
-        df['specie'] = specie
+        df['specie'] = _species[i]
 
         df.to_csv(f"{outputs_path}/output_{i}.csv", index=False)
         print(df)
+
+
+def main():
+    generate_csv(['birch', 'maple'])
 
 
 if __name__=="__main__":
