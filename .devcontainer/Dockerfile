@@ -80,8 +80,22 @@ RUN conda install -y pdal python-pdal gdal -c conda-forge && \
 ENV GDAL_DATA=/opt/conda/share/gdal
 ENV PROJ_LIB=/opt/conda/share/proj
 
-
 ### RGB post process tools
 WORKDIR $WS
 RUN conda run -n docker pip install rasterio && \
     conda run -n docker pip install pyproj
+
+### Decision tree   
+# For matplotlib
+WORKDIR $WS
+ARG DEBIAN_FRONTEND="noninteractive"
+ENV TZ="America/New_York"
+RUN sudo -E apt-get update -y && \
+    sudo -E apt-get install -y \
+    python3-tk \
+    graphviz
+RUN conda run -n docker pip install numpy && \
+    conda run -n docker pip install pandas && \
+    conda run -n docker pip install matplotlib && \
+    conda run -n docker pip install -U scikit-learn && \
+    conda run -n docker pip install dtreeviz
