@@ -1,22 +1,23 @@
 {
-  "name": "Tree landing EDA environment",
+  "name": "Tree landing EDA environment (${localWorkspaceFolderBasename})",
   "build": {
       "dockerfile": "Dockerfile",
       "context": ".",
       "target": "base",
       "args": {
-        "WS": "/home/docker/tree_landing_eda/"
+        "WS": "/home/docker/${localWorkspaceFolderBasename}"
       }
   },
   "runArgs": [
     "--privileged",
     "--network=host",
+    "--label=devcontainer.project=${localWorkspaceFolderBasename}",
     "-e", "UDEV=1",
     "--volume", "/dev:/dev",
     "--volume", "/run/udev:/run/udev"
   ],
-  "workspaceFolder": "/home/docker/tree_landing_eda/",
-  "workspaceMount": "source=${localEnv:HOME}/tree_landing_eda/,target=/home/docker/tree_landing_eda/,type=bind",
+  "workspaceFolder": "/home/docker/${localWorkspaceFolderBasename}",
+  "workspaceMount": "source=${localEnv:HOME}/${localWorkspaceFolderBasename},target=/home/docker/${localWorkspaceFolderBasename},type=bind",
   "remoteEnv": {
     "DISPLAY": ":0"
   },
