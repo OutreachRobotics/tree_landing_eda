@@ -1,0 +1,245 @@
+import subprocess
+
+import pandas as pd
+import numpy as np
+
+from ardupilot_log_reader.reader import Ardupilot
+from pathlib import Path
+
+import bisect
+
+from pyproj import Geod
+from affine import Affine
+
+ws_path = '/home/docker/tree_landing_eda'
+inputs_path = f'{ws_path}/data/inputs'
+outputs_path = f'{ws_path}/data/outputs'
+
+def pixel_to_map(_u, _v):
+    pix = np.array([_u, _v, 1, 1])
+    TZKinv = np.loadtxt(
+        f'{inputs_path}/TZKinv.txt',
+        dtype=np.float64,  # Force 64-bit precision
+        delimiter=None,     # Auto-detect whitespace
+        ndmin=2            # Ensure 2D even if file has 1 row
+    )
+
+    map = (TZKinv@pix)[:3]
+
+    # print('Map:')
+    # print(map)
+
+    return map
+
+def compute_target(_boxes):
+    max_area_idx = _boxes["area"].idxmax()
+    center_x = int(_boxes.loc[max_area_idx, "x"])
+    center_y = int(_boxes.loc[max_area_idx, "y"])
+
+    max_corner = pixel_to_map(_boxes.loc[max_area_idx, "xmax"], _boxes.loc[max_area_idx, "ymax"])
+    min_corner = pixel_to_map(_boxes.loc[max_area_idx, "xmin"], _boxes.loc[max_area_idx, "ymin"])
+
+    center = pixel_to_map(center_x, center_y)
+    width = max_corner[0] - min_corner[0]
+    height = max_corner[1] - min_corner[1]
+    smallest_side = min(width, height)
+    diagonal = (width**2 + height**2) ** 0.5
+    area = width*height
+
+    print('Center pix:')
+    print(str(center_x) + ', ' + str(center_y))
+    print('Center meters:')
+    print(str(center))
+
+    data = {
+        'center_x': [center[0]],
+        'center_y': [center[1]],
+        'center_z': [center[2]],
+        'smallest_side': [smallest_side],
+        'diagonal': [diagonal],
+        'area': [area]
+    }
+
+    return pd.DataFrame(data)
+
+def add_deepforest(_df, _idx):
+    boxes_csv = pd.read_csv(f"{inputs_path}/boxes_{_idx}.csv")
+    df_deepforest = compute_target(boxes_csv)
+    return pd.concat([_df, df_deepforest])
+
+def extract_rising_edges(_timestamps, _signal, _threshold):
+    rising_edges_timestamps = []
+    is_rised = False
+    for i in range(0, len(_signal)):
+        if _signal[i] > _threshold:
+            if not is_rised:
+                rising_edges_timestamps.append(float(_timestamps[i]))
+            is_rised = True
+        else:
+            is_rised = False
+
+    print("Rising edges timestamps")
+    print(str(rising_edges_timestamps))
+
+    return rising_edges_timestamps
+
+def find_closest_timestamps_idx(_input_timestamps, _timestamps_list):
+    closest_indices = []
+    for timestamp in _input_timestamps:
+        # Find the position where the timestamp would be inserted to keep the list sorted
+        pos = bisect.bisect_left(_timestamps_list, timestamp)
+        
+        # Check if the timestamp is exactly matched or find the closest one
+        if pos == 0:
+            closest_indices.append(0)
+        elif pos == len(_timestamps_list):
+            closest_indices.append(len(_timestamps_list) - 1)
+        else:
+            # Compare the difference with the previous and next timestamp
+            prev_diff = abs(_timestamps_list[pos - 1] - timestamp)
+            next_diff = abs(_timestamps_list[pos] - timestamp)
+            if prev_diff <= next_diff:
+                closest_indices.append(pos - 1)
+            else:
+                closest_indices.append(pos)
+    
+    return closest_indices
+
+def get_local_coord(_org, _coord):
+    geod = Geod(ellps="WGS84")
+    _, _, meters_per_degree_lon = geod.inv(_org[0], _org[1], _org[0] + 1, _org[1])
+    _, _, meters_per_degree_lat = geod.inv(_org[0], _org[1], _org[0], _org[1] + 1)
+
+    scale_x = meters_per_degree_lon
+    scale_y = meters_per_degree_lat
+
+    scaling_matrix = Affine.scale(scale_x, scale_y)
+    translation_matrix = Affine.translation(-_org[0], -_org[1])
+    transform = scaling_matrix * translation_matrix
+
+    # print(f"\nTransform:")
+    # print(f"|{transform.a}, {transform.b}, {transform.c}|")
+    # print(f"|{transform.d}, {transform.e}, {transform.f}|")
+    # print(f"|{transform.g}, {transform.h}, {transform.i}|")
+
+    local_x, local_y = transform * (_coord[0], _coord[1])
+
+    return np.array([local_x, local_y, _coord[2]])
+
+def run_ardulog(_filepath_mockup, _filepath_drone):
+    type_request = ['RCIN', 'IMU', 'POS', 'BARO', 'MODE', 'MAG', 'XKF1', 'ORGN']
+    output = Ardupilot.parse(_filepath_mockup, types=type_request, zero_time_base=True)
+    dfs_mockup = output.dfs
+
+    type_request = ['ORGN']
+    output = Ardupilot.parse(_filepath_drone, types=type_request, zero_time_base=True)
+    dfs_drone = output.dfs
+
+    ### Extract home coordinate ###
+    coord_home = np.array([dfs_drone['ORGN']['Lng'], dfs_drone['ORGN']['Lat'], dfs_drone['ORGN']['Alt']])
+    coord_home = coord_home.T[-1]
+
+    ### Extract landing positions###
+    THRESHOLD = 1200
+    landing_timestamps_s = extract_rising_edges(dfs_mockup['RCIN']['timestamp'], dfs_mockup['RCIN']['C5'], THRESHOLD)
+    landing_timestamps_f = extract_rising_edges(dfs_mockup['RCIN']['timestamp'], dfs_mockup['RCIN']['C6'], THRESHOLD)
+
+    POS_idx_list_s = find_closest_timestamps_idx(landing_timestamps_s, dfs_mockup['POS']['timestamp'].to_list())
+    POS_idx_list_f = find_closest_timestamps_idx(landing_timestamps_f, dfs_mockup['POS']['timestamp'].to_list())
+
+    latitudes_s = dfs_mockup['POS']['Lat'][POS_idx_list_s].to_list()
+    longitudes_s = dfs_mockup['POS']['Lng'][POS_idx_list_s].to_list()
+
+    latitudes_f = dfs_mockup['POS']['Lat'][POS_idx_list_f].to_list()
+    longitudes_f = dfs_mockup['POS']['Lng'][POS_idx_list_f].to_list()
+
+    XKF1_idx_list_s = find_closest_timestamps_idx(landing_timestamps_s, dfs_mockup['XKF1']['timestamp'].to_list())
+    XKF1_idx_list_f = find_closest_timestamps_idx(landing_timestamps_f, dfs_mockup['XKF1']['timestamp'].to_list())
+
+    relalt_s = dfs_mockup['XKF1']['PD'][XKF1_idx_list_s].to_list()
+    relalt_f = dfs_mockup['XKF1']['PD'][XKF1_idx_list_f].to_list()
+
+    coords_s = np.array([longitudes_s, latitudes_s, relalt_s]).T
+    coords_f = np.array([longitudes_f, latitudes_f, relalt_f]).T
+
+    local_coords_s = []
+    for coord_s in coords_s:
+        local_coords_s.append(get_local_coord(coord_home, coord_s))
+
+    local_coords_f = []
+    for coord_f in coords_f:
+        local_coords_f.append(get_local_coord(coord_home, coord_f))
+
+    return local_coords_s, local_coords_f
+
+def add_ardulog(_df, _idx):
+    df = _df.copy()
+    local_coords_s, local_coords_f = run_ardulog(
+        Path(__file__).parent / f'{inputs_path}/log_1_2025-3-6-15-17-46.bin',
+        Path(__file__).parent / f'{inputs_path}/log_1_2025-3-6-15-17-46.bin'
+    )
+
+    success_values = np.concatenate([np.array([True] * len(local_coords_s)), np.array([False] * len(local_coords_f))])
+    combined_local_coords = local_coords_s + local_coords_f
+
+    df = df.loc[df.index.repeat(len(local_coords_s) + len(local_coords_f))].reset_index(drop=True)
+    df.insert(0, 'success', success_values)
+    df.insert(1, 'landing_x', np.array(combined_local_coords).T[0])
+    df.insert(2, 'landing_y', np.array(combined_local_coords).T[1])
+
+    return df
+
+def run_pcl(_args):
+    # Path to your compiled executable
+    executable_path = f'{ws_path}/build/pcl'
+
+    # Run the executable with arguments
+    try:
+        print("Running:", [executable_path] + _args)
+        result = subprocess.run(
+            [executable_path] + _args,
+            check=True,
+            text=True,
+            capture_output=True
+        )
+        print("Program output:")
+        print(result.stdout)  # Print the standard output of the program
+    except subprocess.CalledProcessError as e:
+        print("Error running the program:")
+        print(e.stderr)  # Print the standard error of the program
+
+def add_pcl(_df, _idx):
+    pcl_data = []
+    for i in range(len(_df)):
+        landing_x = str(15.0) + str(i)
+        landing_y = str(4.0) + str(i)
+        args = [
+            f"{inputs_path}/rtabmap_cloud_{_idx}.ply",
+            f"{outputs_path}/output_pcl_{_idx}.csv",
+            landing_x, # str(_df.at[i, 'landing_x'])
+            landing_y, # str(_df.at[i, 'landing_y'])
+            str(_df.at[i, 'center_x']),
+            str(_df.at[i, 'center_y'])
+        ]
+        run_pcl(args)
+        pcl_csv = pd.read_csv(f"{outputs_path}/output_pcl_{_idx}.csv")
+        pcl_data.append(pcl_csv.iloc[0].to_dict())
+
+    df_pcl = pd.DataFrame(pcl_data)
+    return pd.concat([_df, df_pcl], axis=1)
+
+def main():
+    for i in range(0,2):
+        specie = 'birch'
+        df = pd.DataFrame()
+        df = add_deepforest(df, i)
+        df = add_ardulog(df, i)
+        df = add_pcl(df, i)
+        df['specie'] = specie
+
+        df.to_csv(f"{outputs_path}/output_{i}.csv", index=False)
+        print(df)
+
+
+if __name__=="__main__":
+    main()

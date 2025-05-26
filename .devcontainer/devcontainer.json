@@ -1,0 +1,34 @@
+{
+  "name": "Tree landing EDA environment",
+  "build": {
+      "dockerfile": "Dockerfile",
+      "context": ".",
+      "target": "base",
+      "args": {
+        "WS": "/home/docker/tree_landing_eda/"
+      }
+  },
+  "runArgs": [
+    "--privileged",
+    "--network=host",
+    "-e", "UDEV=1",
+    "--volume", "/dev:/dev",
+    "--volume", "/run/udev:/run/udev"
+  ],
+  "workspaceFolder": "/home/docker/tree_landing_eda/",
+  "workspaceMount": "source=${localEnv:HOME}/tree_landing_eda/,target=/home/docker/tree_landing_eda/,type=bind",
+  "remoteEnv": {
+    "DISPLAY": ":0"
+  },
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "remote.autoForwardPorts": false
+      },
+      "extensions": [
+        "ms-python.python",
+        "ms-vscode.cpptools"
+    ]
+    }
+  }
+}
