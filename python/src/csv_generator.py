@@ -126,18 +126,10 @@ def get_local_coord(_org, _coord):
 
     return np.array([local_x, local_y, _coord[2]])
 
-def run_ardulog(_filepath_mockup, _filepath_drone):
+def run_ardulog(_filepath_mockup):
     type_request = ['RCIN', 'IMU', 'POS', 'BARO', 'MODE', 'MAG', 'XKF1', 'ORGN']
     output = Ardupilot.parse(_filepath_mockup, types=type_request, zero_time_base=True)
     dfs_mockup = output.dfs
-
-    type_request = ['ORGN']
-    output = Ardupilot.parse(_filepath_drone, types=type_request, zero_time_base=True)
-    dfs_drone = output.dfs
-
-    ### Extract home coordinate ###
-    coord_home = np.array([dfs_drone['ORGN']['Lng'], dfs_drone['ORGN']['Lat'], dfs_drone['ORGN']['Alt']])
-    coord_home = coord_home.T[-1]
 
     ### Extract landing positions ###
     THRESHOLD = 1200
@@ -162,12 +154,18 @@ def run_ardulog(_filepath_mockup, _filepath_drone):
     coords_s = np.array([longitudes_s, latitudes_s, relalt_s]).T
     coords_f = np.array([longitudes_f, latitudes_f, relalt_f]).T
 
+    return coords_s, coords_f
+
+def run_home(_filepath_home, _coords_s, _coords_f):
+    home_csv = pd.read_csv(_filepath_home)
+    coord_home = home_csv[['latitude', 'longitude', 'altitude']].iloc[0].tolist()
+
     local_coords_s = []
-    for coord_s in coords_s:
+    for coord_s in _coords_s:
         local_coords_s.append(get_local_coord(coord_home, coord_s))
 
     local_coords_f = []
-    for coord_f in coords_f:
+    for coord_f in _coords_f:
         local_coords_f.append(get_local_coord(coord_home, coord_f))
 
     return local_coords_s, local_coords_f
@@ -176,9 +174,14 @@ def add_ardulog(_df, _idx):
     df = _df.copy()
 
     #TODO
-    local_coords_s, local_coords_f = run_ardulog(
-        Path(__file__).parent / f'{inputs_path}/log_1_2025-3-6-15-17-46.bin',
-        Path(__file__).parent / f'{inputs_path}/log_1_2025-3-6-15-17-46.bin'
+    coords_s, coords_f = run_ardulog(
+        f'{inputs_path}/log_0_2025-5-27-13-19-50.bin',
+    )
+
+    local_coords_s, local_coords_f = run_home(
+        f'{inputs_path}/home_{_idx}.csv',
+        coords_s,
+        coords_f
     )
 
     success_values = np.concatenate([np.array([True] * len(local_coords_s)), np.array([False] * len(local_coords_f))])
@@ -213,8 +216,8 @@ def run_pcl(_args):
 def add_pcl(_df, _idx):
     pcl_data = []
     for i in range(len(_df)):
-        landing_x = str(15.0) + str(i)
-        landing_y = str(4.0) + str(i)
+        landing_x = str(12.0) + str(i)
+        landing_y = str(16.0) + str(i)
         args = [
             f"{inputs_path}/rtabmap_cloud_{_idx}.ply",
             f"{outputs_path}/output_pcl_{_idx}.csv",
