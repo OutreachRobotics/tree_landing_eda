@@ -474,8 +474,9 @@ std::vector<float> computeDistToCenters(
     return output;
 }
 
-void boundPoints(const pcl::PointXYZRGB _min_pt, const pcl::PointXYZRGB _max_pt, float& _x, float& _y)
+bool checkInboundPoints(const pcl::PointXYZRGB _min_pt, const pcl::PointXYZRGB _max_pt, float& _x, float& _y)
 {
+    bool isPointInBound = true;
     // Bounding box dimensions
     float width = _max_pt.x - _min_pt.x;
     float height = _max_pt.y - _min_pt.y;
@@ -483,21 +484,21 @@ void boundPoints(const pcl::PointXYZRGB _min_pt, const pcl::PointXYZRGB _max_pt,
     float c_x = width / 2.0 + _min_pt.x;
     float c_y = height / 2.0 + _min_pt.y;
 
-    std::cout << "AABB Dimensions: "
+    std::cout << "\n" << "AABB Dimensions: "
             << width << " (W) x "
             << height << " (H) x "
-            << depth << " (D)\n";
+            << depth << " (D)\n\n";
 
     if(_x < _min_pt.x || _x > _max_pt.x){
-        _x = c_x;
-        std::cerr << "\n" << "WARNING: Target point out of bound: " << _min_pt.x << " < " << _x << " < " << _max_pt.x << "\n";
-        std::cerr << "Point automatically centered to avoid issues\n\n";
+        std::cerr << "WARNING: Target point out of bound: " << _min_pt.x << " < " << _x << " < " << _max_pt.x << "\n";
+        isPointInBound = false;
     }
     if(_y < _min_pt.y || _y > _max_pt.y){
-        _y = c_y;
-        std::cerr << "WARNING: Target point out of bound: " << _min_pt.y << " < " << _y << " < " << _max_pt.y << "\n";
-        std::cerr << "Point automatically centered to avoid issues\n\n";
+        std::cerr << "WARNING: Target point out of bound: " << _min_pt.y << " < " << _y << " < " << _max_pt.y << "\n\n\n";
+        isPointInBound = false;
     }
+
+    return isPointInBound;
 }
 
 void saveToCSV(
@@ -506,8 +507,8 @@ void saveToCSV(
     const float _density,
     const float _slope,
     const float _stdDev,
-    const std::vector<float>& _centerDists
-) {
+    const std::vector<float>& _centerDists)
+{
     // Open the file for writing
     std::ofstream file;
     file.open(_filename);
@@ -603,12 +604,12 @@ void view(const std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> _clouds){
 int main(int argc, char* argv[]) {
     // std::cerr << "Number of args received: " << argc << "\n";
 
-    std::string ply_file_path = "/home/docker/tree_landing_eda/data/inputs/rtabmap_cloud.ply";
-    std::string output_csv_path = "/home/docker/tree_landing_eda/data/outputs/output_pcl.csv";
-    float landing_x = 15.50081099;
-    float landing_y = 3.76794873;
-    float df_x = 15.0;
-    float df_y = 4.0;
+    std::string ply_file_path = "/home/docker/tree_landing_eda/data/inputs/rtabmap_cloud_0.ply";
+    std::string output_csv_path = "/home/docker/tree_landing_eda/data/outputs/output_pcl_0.csv";
+    float landing_x = -12.50081099;
+    float landing_y = 16.76794873;
+    float df_x = -12.0;
+    float df_y = 16.0;
     bool shouldView = true;
 
     // Check if the correct number of arguments is provided
@@ -630,11 +631,16 @@ int main(int argc, char* argv[]) {
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr ogCloud = loadPly(ply_file_path);
     // pcl::PointCloud<pcl::PointNormal> normalsCloud = extractNormalsPC(*cloud, pcl::PointXYZRGB(0.0, 0.0, 0.0, 255, 255, 255));
 
-    // Get min/max coordinates
     pcl::PointXYZRGB min_pt, max_pt;
     pcl::getMinMax3D(*ogCloud, min_pt, max_pt);
-    boundPoints(min_pt, max_pt, landing_x, landing_y);
-    boundPoints(min_pt, max_pt, df_x, df_y);
+    bool isLandingInbound = checkInboundPoints(min_pt, max_pt, landing_x, landing_y);
+    bool isDFInbound = checkInboundPoints(min_pt, max_pt, df_x, df_y);
+
+    if(!isLandingInbound || !isDFInbound){
+        saveToCSV(output_csv_path, pcl::PrincipalCurvatures(), 0.0, 0.0, 0.0, std::vector<float>({0.0, 0.0, 0.0, 0.0}));
+        std::cerr << "***Saving empty csv line because a point isn't inbound***\n";
+        return 0;
+    }
 
     pcl::PointXYZRGB dfCenterPoint(df_x, df_y, 0.0, 255, 255, 255);
     pcl::PointXYZRGB landingPoint(landing_x, landing_y, 0.0, 255, 255, 255);
