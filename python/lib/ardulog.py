@@ -1,71 +1,12 @@
-import subprocess
-
-import pandas as pd
-import numpy as np
-
+from affine import Affine
 from ardupilot_log_reader.reader import Ardupilot
-from pathlib import Path
+from config import INPUTS_PATH
+from pyproj import Geod
 
 import bisect
-
-from pyproj import Geod
-from affine import Affine
-
-ws_path = '/home/docker/tree_landing_eda'
-inputs_path = f'{ws_path}/data/inputs'
-outputs_path = f'{ws_path}/data/outputs'
-
-def pixel_to_map(_u, _v, _idx):
-    pix = np.array([_u, _v, 1, 1])
-    TZKinv = np.loadtxt(
-        f'{inputs_path}/TZKinv_{_idx}.txt',
-        dtype=np.float64,  # Force 64-bit precision
-        delimiter=None,     # Auto-detect whitespace
-        ndmin=2            # Ensure 2D even if file has 1 row
-    )
-
-    map = (TZKinv@pix)[:3]
-
-    # print('Map:')
-    # print(map)
-
-    return map
-
-def compute_target(_boxes, _idx):
-    max_area_idx = _boxes["area"].idxmax()
-    center_x = int(_boxes.loc[max_area_idx, "x"])
-    center_y = int(_boxes.loc[max_area_idx, "y"])
-
-    max_corner = pixel_to_map(_boxes.loc[max_area_idx, "xmax"], _boxes.loc[max_area_idx, "ymax"], _idx)
-    min_corner = pixel_to_map(_boxes.loc[max_area_idx, "xmin"], _boxes.loc[max_area_idx, "ymin"], _idx)
-
-    center = pixel_to_map(center_x, center_y, _idx)
-    width = max_corner[0] - min_corner[0]
-    height = max_corner[1] - min_corner[1]
-    smallest_side = min(width, height)
-    diagonal = (width**2 + height**2) ** 0.5
-    area = width*height
-
-    print('Center pix:')
-    print(str(center_x) + ', ' + str(center_y))
-    print('Center meters:')
-    print(str(center))
-
-    data = {
-        'center_x': [center[0]],
-        'center_y': [center[1]],
-        'center_z': [center[2]],
-        'smallest_side': [smallest_side],
-        'diagonal': [diagonal],
-        'area': [area]
-    }
-
-    return pd.DataFrame(data)
-
-def add_deepforest(_df, _idx):
-    boxes_csv = pd.read_csv(f"{inputs_path}/boxes_{_idx}.csv")
-    df_deepforest = compute_target(boxes_csv, _idx)
-    return pd.concat([_df, df_deepforest])
+import numpy as np
+import os
+import pandas as pd
 
 def extract_rising_edges(_timestamps, _signal, _threshold):
     rising_edges_timestamps = []
@@ -175,11 +116,11 @@ def add_ardulog(_df, _idx):
 
     #TODO
     coords_s, coords_f = run_ardulog(
-        f'{inputs_path}/log_0_2025-5-27-13-19-50.bin',
+        os.path.join(f'{INPUTS_PATH}', 'log_0_2025-5-27-13-19-50.bin'),
     )
 
     local_coords_s, local_coords_f = run_home(
-        f'{inputs_path}/home_{_idx}.csv',
+        os.path.join(f'{INPUTS_PATH}', f'home_{_idx}.csv'),
         coords_s,
         coords_f
     )
@@ -193,61 +134,3 @@ def add_ardulog(_df, _idx):
     df.insert(2, 'landing_y', np.array(combined_local_coords).T[1])
 
     return df
-
-def run_pcl(_args):
-    # Path to your compiled executable
-    executable_path = f'{ws_path}/build/pcl'
-
-    # Run the executable with arguments
-    try:
-        print("Running:", [executable_path] + _args)
-        result = subprocess.run(
-            [executable_path] + _args,
-            check=True,
-            text=True,
-            capture_output=True
-        )
-        print("Program output:")
-        print(result.stdout)  # Print the standard output of the program
-    except subprocess.CalledProcessError as e:
-        print("Error running the program:")
-        print(e.stderr)  # Print the standard error of the program
-
-def add_pcl(_df, _idx):
-    pcl_data = []
-    for i in range(len(_df)):
-        landing_x = str(12.0) + str(i)
-        landing_y = str(16.0) + str(i)
-        args = [
-            f"{inputs_path}/rtabmap_cloud_{_idx}.ply",
-            f"{outputs_path}/output_pcl_{_idx}.csv",
-            landing_x, # str(_df.at[i, 'landing_x'])
-            landing_y, # str(_df.at[i, 'landing_y'])
-            str(_df.at[i, 'center_x']),
-            str(_df.at[i, 'center_y'])
-        ]
-        run_pcl(args)
-        pcl_csv = pd.read_csv(f"{outputs_path}/output_pcl_{_idx}.csv")
-        pcl_data.append(pcl_csv.iloc[0].to_dict())
-
-    df_pcl = pd.DataFrame(pcl_data)
-    return pd.concat([_df, df_pcl], axis=1)
-
-def generate_csv(_species: list[str]=[]):
-    for i in range(0,len(_species)):
-        df = pd.DataFrame()
-        df = add_deepforest(df, i)
-        df = add_ardulog(df, i)
-        df = add_pcl(df, i)
-        df['specie'] = _species[i]
-
-        df.to_csv(f"{outputs_path}/output_{i}.csv", index=False)
-        print(df)
-
-
-def main():
-    generate_csv(['birch', 'maple'])
-
-
-if __name__=="__main__":
-    main()
