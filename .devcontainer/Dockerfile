@@ -43,8 +43,7 @@ RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -
     sudo chown -R $USERNAME:$USERNAME /opt/conda
 
 RUN /opt/conda/bin/conda init bash && \
-    echo "conda activate docker" >> ~/.bashrc && \
-    /opt/conda/bin/conda create -n docker python=3.10 pandas
+    echo "conda activate docker" >> ~/.bashrc
 
 ENV PATH=/opt/conda/bin:$PATH
 RUN conda create --name docker python=3.10 && \
@@ -54,12 +53,16 @@ RUN conda create --name docker python=3.10 && \
 WORKDIR $WS
 ARG DEBIAN_FRONTEND="noninteractive"
 ENV TZ="America/New_York"
-RUN sudo -E apt-get update -y && sudo -E apt-get install -y python3-tk
-RUN conda run -n docker pip install ardupilot_log_reader && \
-    conda run -n docker pip install matplotlib && \
-    conda run -n docker pip install laspy && \
-    conda run -n docker pip install pyproj && \
-    conda run -n docker pip install affine
+RUN sudo -E apt-get update -y && \
+    sudo -E apt-get install -y \
+    python3-tk
+RUN conda run -n docker pip install \
+    ardupilot_log_reader \
+    pandas \
+    matplotlib \
+    laspy \
+    pyproj \
+    affine
 
 ### PC post process tools
 WORKDIR $WS
@@ -69,21 +72,25 @@ RUN sudo apt-get update && \
 RUN sudo apt-get update && sudo apt-get install -y \
     libgl1-mesa-glx \
     libglib2.0-0
-RUN conda install -c conda-forge libstdcxx-ng -y
+RUN conda install -n docker -c conda-forge libstdcxx-ng -y
 RUN conda run -n docker pip install open3d-cpu
 # https://github.com/isl-org/Open3D/issues/6872#issuecomment-2615797521
 ENV XDG_SESSION_TYPE=x11
 
 # PDAL
-RUN conda install -y pdal python-pdal gdal -c conda-forge && \
-    conda install -y libsqlite -c conda-forge --force-reinstall
+RUN conda install -n docker -c conda-forge -y \
+    pdal \
+    python-pdal \
+    gdal
+RUN conda install -n docker -c conda-forge --force-reinstall -y libsqlite
 ENV GDAL_DATA=/opt/conda/share/gdal
 ENV PROJ_LIB=/opt/conda/share/proj
 
 ### RGB post process tools
 WORKDIR $WS
-RUN conda run -n docker pip install rasterio && \
-    conda run -n docker pip install pyproj
+RUN conda run -n docker pip install \
+    rasterio \
+    pyproj
 
 ### Decision tree   
 # For matplotlib
@@ -94,8 +101,8 @@ RUN sudo -E apt-get update -y && \
     sudo -E apt-get install -y \
     python3-tk \
     graphviz
-RUN conda run -n docker pip install numpy && \
-    conda run -n docker pip install pandas && \
-    conda run -n docker pip install matplotlib && \
-    conda run -n docker pip install -U scikit-learn && \
-    conda run -n docker pip install dtreeviz
+RUN conda run -n docker pip install \
+    pandas \
+    matplotlib \
+    -U scikit-learn \
+    dtreeviz
