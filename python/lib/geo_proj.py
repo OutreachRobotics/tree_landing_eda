@@ -1,0 +1,358 @@
+from affine import Affine
+from config import INPUTS_PATH, OUTPUTS_PATH, CAM_FOV_H, CAM_FOV_V
+from matplotlib import image
+from pyproj import Geod
+
+import math
+import numpy as np
+import open3d as o3d
+import os
+import pdal
+import rasterio
+
+
+class DronePose:
+    def __init__(self, _lat, _long, _height, _yaw):
+        self.lat = _lat    # Latitude
+        self.long = _long  # Longitude
+        self.height = _height  # Altitude/height
+        # Transforming from deg to rad and
+        # Shifting 0 degrees from heading north to east
+        self.yaw = math.radians(_yaw) - math.radians(90)
+
+def get_meters_per_degree_at_coord(_coord_long, _coord_lat):
+    # Define the WGS84 ellipsoid
+    geod = Geod(ellps="WGS84")
+
+    # Calculate meters per degree of longitude (change in longitude, keep latitude constant)
+    _, _, meters_per_degree_lon = geod.inv(_coord_long, _coord_lat, _coord_long + 1, _coord_lat)
+
+    # Calculate meters per degree of latitude (change in latitude, keep longitude constant)
+    _, _, meters_per_degree_lat = geod.inv(_coord_long, _coord_lat, _coord_long, _coord_lat + 1)
+
+    return meters_per_degree_lon, meters_per_degree_lat
+
+def get_local_coord(_org, _coord):
+    geod = Geod(ellps="WGS84")
+    _, _, meters_per_degree_lon = geod.inv(_org[0], _org[1], _org[0] + 1, _org[1])
+    _, _, meters_per_degree_lat = geod.inv(_org[0], _org[1], _org[0], _org[1] + 1)
+
+    scale_x = meters_per_degree_lon
+    scale_y = meters_per_degree_lat
+
+    scaling_matrix = Affine.scale(scale_x, scale_y)
+    translation_matrix = Affine.translation(-_org[0], -_org[1])
+    transform = scaling_matrix * translation_matrix
+
+    # print(f"\nTransform:")
+    # print(f"|{transform.a}, {transform.b}, {transform.c}|")
+    # print(f"|{transform.d}, {transform.e}, {transform.f}|")
+    # print(f"|{transform.g}, {transform.h}, {transform.i}|")
+
+    local_x, local_y = transform * (_coord[0], _coord[1])
+
+    return np.array([local_x, local_y, _coord[2]])
+
+def compute_transform(_lat, _long, _scale_lat, _scale_long, _yaw):
+    # Create the individual matrices
+    translation_matrix = Affine.translation(_long, _lat)
+    scaling_matrix = Affine.scale(_scale_long, _scale_lat)
+    rotation_matrix = Affine.rotation(math.degrees(_yaw))
+    transform = translation_matrix * scaling_matrix * rotation_matrix
+
+    # Print the individual matrices
+    print("\nTranslation Matrix:")
+    print(f"|{translation_matrix.a:.8f}, {translation_matrix.b:.8f}, {translation_matrix.c:.8f}|")
+    print(f"|{translation_matrix.d:.8f}, {translation_matrix.e:.8f}, {translation_matrix.f:.8f}|")
+    print(f"|{translation_matrix.g:.8f}, {translation_matrix.h:.8f}, {translation_matrix.i:.8f}|")
+
+    print("\nRotation Matrix:")
+    print(f"|{rotation_matrix.a:.8f}, {rotation_matrix.b:.8f}, {rotation_matrix.c:.8f}|")
+    print(f"|{rotation_matrix.d:.8f}, {rotation_matrix.e:.8f}, {rotation_matrix.f:.8f}|")
+    print(f"|{rotation_matrix.g:.8f}, {rotation_matrix.h:.8f}, {rotation_matrix.i:.8f}|")
+
+    print("\nScaling Matrix:")
+    print(f"|{scaling_matrix.a:.8f}, {scaling_matrix.b:.8f}, {scaling_matrix.c:.8f}|")
+    print(f"|{scaling_matrix.d:.8f}, {scaling_matrix.e:.8f}, {scaling_matrix.f:.8f}|")
+    print(f"|{scaling_matrix.g:.8f}, {scaling_matrix.h:.8f}, {scaling_matrix.i:.8f}|")
+
+    print(f"\nImage transform:")
+    print(f"|{transform.a:.8f}, {transform.b:.8f}, {transform.c:.8f}|")
+    print(f"|{transform.d:.8f}, {transform.e:.8f}, {transform.f:.8f}|")
+    print(f"|{transform.g:.8f}, {transform.h:.8f}, {transform.i:.8f}|")
+
+    return transform
+
+
+### RGB GEO REF ###
+
+def compute_img_size(_fov, _height):
+    return 2*_height*math.tan(math.radians(_fov/2.0))
+
+def rotate_corners(_corners, _yaw):
+    """
+    Rotate the corners around the center using the given yaw angle.
+
+    Args:
+        _corners (list of tuples): Local coordinates of the corners relative to the center.
+        _yaw (float): Yaw angle in radians.
+
+    Returns:
+        list of tuples: Rotated corners in local coordinates.
+    """
+    corners_rotated = [
+        (
+            x * math.cos(_yaw) - y * math.sin(_yaw),  # Rotated x
+            x * math.sin(_yaw) + y * math.cos(_yaw),  # Rotated y
+        )
+        for x, y in _corners
+    ]
+    return corners_rotated
+
+def get_corners(_width, _height):
+    return [
+        (-_width / 2.0, _height / 2.0),  # Top-left
+        (_width / 2.0, _height / 2.0),   # Top-right
+        (-_width / 2.0, -_height / 2.0), # Bottom-left
+        (_width / 2.0, -_height / 2.0),  # Bottom-right
+    ]
+
+def compute_bbox(_corners):
+    max_x = max(corner[0] for corner in _corners)
+    min_x = min(corner[0] for corner in _corners)
+    max_y = max(corner[1] for corner in _corners)
+    min_y = min(corner[1] for corner in _corners)
+
+    x_size = max_x - min_x
+    y_size = max_y - min_y
+
+    return x_size, y_size
+
+def compute_geo_ref(_drone_pose):
+    image_width_meters = compute_img_size(CAM_FOV_H, _drone_pose.height)
+    image_height_meters = compute_img_size(CAM_FOV_V, _drone_pose.height)
+
+    meters_per_degree_lon, meters_per_degree_lat = get_meters_per_degree_at_coord(_drone_pose.long, _drone_pose.lat)
+
+    print(f"Image Width (meters): {image_width_meters:.2f}")
+    print(f"Meters per Degree Longitude: {meters_per_degree_lon:.2f}")
+    print(f"Image Height (meters): {image_height_meters:.2f}")
+    print(f"Meters per Degree Latitude: {meters_per_degree_lat:.2f}")
+    print(f"Meters per degree of longitude at latitude {_drone_pose.lat}: {meters_per_degree_lon}")
+    print(f"Meters per degree of latitude at latitude {_drone_pose.lat}: {meters_per_degree_lat}")
+
+    # Convert the rotated local coordinates to geographic coordinates
+    corners_meters = get_corners(image_width_meters, image_height_meters)
+    corners_meters_rotated = rotate_corners(corners_meters, _drone_pose.yaw)
+    corners_geo = [
+        (_drone_pose.long + (x / meters_per_degree_lon), _drone_pose.lat + (y / meters_per_degree_lat))
+        for x, y in corners_meters_rotated
+    ]
+    img_long, img_lat = compute_bbox(corners_geo)
+    return img_long, img_lat, corners_geo
+
+def compute_scale(_png_img, _yaw, _img_lat, _img_long, _corners_geo):
+    image_height_pixels = _png_img.shape[0]
+    image_width_pixels = _png_img.shape[1]
+
+    corners_pixels = get_corners(image_width_pixels, image_height_pixels)
+    corners_pixels_rotated = rotate_corners(corners_pixels, _yaw)
+    img_pix_x, img_pix_y = compute_bbox(corners_pixels_rotated)
+
+    pixel_size_long = _img_long/img_pix_x
+    pixel_size_lat = _img_lat/img_pix_y
+
+    print("Geo corners: " + str(_corners_geo))
+    print(f"img_long: {_img_long:.8f}")
+    print(f"img_lat: {_img_lat:.8f}")
+    print(f"img_pix_x: {img_pix_x:.8f}")
+    print(f"img_pix_y: {img_pix_y:.8f}")
+    print(f"Image Width (pixels): {image_width_pixels:.8f}")
+    print(f"Image Height (pixels): {image_height_pixels:.8f}")
+    print(f"Top-Left Longitude: {_corners_geo[0][0]:.8f}")
+    print(f"Top-Left Latitude: {_corners_geo[0][1]:.8f}")
+    print(f"YAW: {_yaw:.8f}")
+    print(f"Pixel Size (Long, degrees): {pixel_size_long:.8f}")
+    print(f"Pixel Size (Lat, degrees): {pixel_size_lat:.8f}")
+
+    return pixel_size_lat, pixel_size_long
+
+def save_raster(_output_img_name, _png_img, _transform):
+    # Define the CRS (e.g., WGS84)
+    crs = 'EPSG:4326'
+
+    # Save the geo-referenced image as a GeoTIFF
+    with rasterio.open(
+        os.path.join(f'{OUTPUTS_PATH}', f'{_output_img_name}.tif'),
+        'w',
+        driver='GTiff',
+        height=_png_img.shape[0],
+        width=_png_img.shape[1],
+        count=3,  # Number of bands (3 for RGB)
+        dtype=_png_img.dtype,
+        crs=crs,
+        transform=_transform,
+    ) as dst:
+        # Write the RGB bands to the GeoTIFF
+        for band in range(3):
+            dst.write(_png_img[:, :, band], band + 1)
+
+def compute_geo_ref_rgb(_input_img_name: str, _output_img_name: str, _drone_pose: DronePose):
+    # HEIGHT = 65 # Max accuracy on tree
+    # # HEIGHT = 78 # Real height
+
+    # # CENTER_LAT = 45.377789  # Latitude in degrees
+    # # CENTER_LONG = -71.940123  # Longitude in degrees
+    # CENTER_LAT = 45.3777901  # Latitude in degrees
+    # CENTER_LONG = -71.9401421  # Longitude in degrees
+    # YAW = math.radians(5.605) - math.radians(90)
+
+    img_long, img_lat, corners_geo = compute_geo_ref(_drone_pose)
+
+    # Find the top-left corner in geographic coordinates
+    top_left_lon = corners_geo[0][0]
+    top_left_lat = corners_geo[0][1]
+
+    # Load the PNG image as a numpy array
+    png_image = image.imread(os.path.join(f'{INPUTS_PATH}', f'{_input_img_name}.png'))
+
+    pixel_size_lat, pixel_size_long = compute_scale(
+        png_image,
+        _drone_pose.yaw,
+        img_lat,
+        img_long,
+        corners_geo
+    )
+
+    transform = compute_transform(
+        top_left_lat,
+        top_left_lon,
+        -pixel_size_lat, # Invert y axis
+        pixel_size_long,
+        -_drone_pose.yaw # Invert rotation because of inverted y axis
+    )
+    save_raster(_output_img_name, png_image, transform)
+
+
+### CLOUD GEO REF ###
+
+# # rtabmap_cloud
+# ORIGIN_LAT = 45.3777769  # Latitude in degrees
+# ORIGIN_LONG = -71.9403259  # Longitude in degrees
+# # YAW = math.radians(92.82) - math.radians(90)
+# YAW = 0
+
+def compute_cloud_size(_point_cloud):
+    # Get the points as a NumPy array
+    points = np.asarray(_point_cloud.points)
+
+    # Compute the minimum and maximum values for X and Y
+    min_x, min_y = np.min(points[:, 0]), np.min(points[:, 1])
+    max_x, max_y = np.max(points[:, 0]), np.max(points[:, 1])
+
+    # Compute the dimensions (width and height)
+    x_dimension = max_x - min_x
+    y_dimension = max_y - min_y
+
+    return x_dimension, y_dimension
+
+def affine2pdal(_affine):
+    # Convert the affine matrix to a 4x4 matrix for PDAL
+    affine_np = np.array(_affine).reshape(3, 3)
+    matrix_3d = np.eye(4)  # Create a 4x4 identity matrix
+    matrix_3d[:2, :2] = affine_np[:2, :2]  # Copy rotation and scaling
+    matrix_3d[:2, 3] = affine_np[:2, 2]    # Copy translation
+
+    print("\nTransformation Matrix:")
+    for row in matrix_3d:
+        print(f"|{row[0]:.8f}, {row[1]:.8f}, {row[2]:.8f}, {row[3]:.8f}|")
+
+    # Flatten the matrix to a space-separated string for PDAL
+    return " ".join(map(str, matrix_3d.flatten()))
+
+def compute_pdal(_transform, _input_file, _output_file):
+        # Flatten the matrix to a space-separated string for PDAL
+    pdal_matrix = affine2pdal(_transform)
+
+    pipeline_json = """
+    [
+        {
+            "type": "readers.ply",
+            "filename": "{INPUT}"
+        },
+        {
+            "type": "filters.transformation",
+            "matrix": "{MATRIX}"
+        },
+        {
+            "type": "writers.las",
+            "a_srs": "EPSG:4326",
+            "filename": "{OUTPUT}",
+            "scale_x":"0.0000001",
+            "scale_y":"0.0000001",
+            "scale_z":"0.0000001"
+        }
+    ]
+    """
+
+    # Replace the placeholder with the actual matrix
+    pipeline_json = pipeline_json.replace("{INPUT}", _input_file)
+    pipeline_json = pipeline_json.replace("{OUTPUT}", _output_file)
+    pipeline_json = pipeline_json.replace("{MATRIX}", pdal_matrix)
+
+    # Create the PDAL pipeline
+    pipeline = pdal.Pipeline(pipeline_json)
+
+    # Execute the pipeline
+    pipeline.execute()
+
+def compute_geo_ref_cloud(_input_cloud_name: str, _output_cloud_name: str, _home_lat: float, _home_long: float):
+    input_file = os.path.join(f'{INPUTS_PATH}', f'{_input_cloud_name}.ply')
+    output_file = os.path.join(f'{OUTPUTS_PATH}', f'{_output_cloud_name}.las')
+
+    meters_per_degree_lon, meters_per_degree_lat = get_meters_per_degree_at_coord(_home_long, _home_lat)
+
+    # Load the point cloud from the PLY file
+    point_cloud = o3d.io.read_point_cloud(input_file)
+    x_dimension, y_dimension = compute_cloud_size(point_cloud)
+
+    # Print the results
+    print(f"X Dimension (Width): {x_dimension:.8f} units")
+    print(f"Y Dimension (Height): {y_dimension:.8f} units")
+    print(f"meters_per_degree_lon: {meters_per_degree_lon:.10f}")
+    print(f"meters_per_degree_lat: {meters_per_degree_lat:.10f}")
+    print(f"1/meters_per_degree_lon: {1/meters_per_degree_lon:.10f}")
+    print(f"1/meters_per_degree_lat: {1/meters_per_degree_lat:.10f}")
+
+    transform = compute_transform(
+        _home_lat,
+        _home_long,
+        1/meters_per_degree_lat,
+        1/meters_per_degree_lon,
+        0 # Local frame is usually already aligned with global frame
+    )
+
+    compute_pdal(transform, input_file, output_file)
+
+
+def main():
+    compute_geo_ref_rgb(
+        'img_input_2',
+        'img_input_geo_ref_2',
+        DronePose(
+            45.3785691,
+            -71.9445941,
+            65,
+            5.3
+        )
+    )
+    compute_geo_ref_cloud(
+        'rtabmap_cloud_2',
+        'cloud_geo_ref_2',
+        45.3785691,
+        -71.9445941
+    )
+
+if __name__=="__main__":
+    main()
+    

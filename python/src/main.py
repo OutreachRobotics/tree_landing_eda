@@ -12,10 +12,12 @@ print(f"Project root: {project_root}")
 print(f"Current sys.path: {sys.path}")
 
 from csv_generator import generate_csv
+from visualizer import viz
 
 
 def main():
    generate_csv(['maple', 'chestnut', 'birch'])
+   viz(2)
 
 
 if __name__=="__main__":

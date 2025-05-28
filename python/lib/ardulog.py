@@ -1,7 +1,6 @@
-from affine import Affine
 from ardupilot_log_reader.reader import Ardupilot
 from config import INPUTS_PATH
-from pyproj import Geod
+from geo_proj import get_local_coord
 
 import bisect
 import numpy as np
@@ -45,27 +44,6 @@ def find_closest_timestamps_idx(_input_timestamps, _timestamps_list):
                 closest_indices.append(pos)
     
     return closest_indices
-
-def get_local_coord(_org, _coord):
-    geod = Geod(ellps="WGS84")
-    _, _, meters_per_degree_lon = geod.inv(_org[0], _org[1], _org[0] + 1, _org[1])
-    _, _, meters_per_degree_lat = geod.inv(_org[0], _org[1], _org[0], _org[1] + 1)
-
-    scale_x = meters_per_degree_lon
-    scale_y = meters_per_degree_lat
-
-    scaling_matrix = Affine.scale(scale_x, scale_y)
-    translation_matrix = Affine.translation(-_org[0], -_org[1])
-    transform = scaling_matrix * translation_matrix
-
-    # print(f"\nTransform:")
-    # print(f"|{transform.a}, {transform.b}, {transform.c}|")
-    # print(f"|{transform.d}, {transform.e}, {transform.f}|")
-    # print(f"|{transform.g}, {transform.h}, {transform.i}|")
-
-    local_x, local_y = transform * (_coord[0], _coord[1])
-
-    return np.array([local_x, local_y, _coord[2]])
 
 def run_ardulog(_filepath_mockup):
     type_request = ['RCIN', 'IMU', 'POS', 'BARO', 'MODE', 'MAG', 'XKF1', 'ORGN']
