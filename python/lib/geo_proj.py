@@ -1,8 +1,8 @@
 from affine import Affine
-from config import INPUTS_PATH, OUTPUTS_PATH, CAM_FOV_H, CAM_FOV_V
 from matplotlib import image
 from pyproj import Geod
 
+import config
 import math
 import numpy as np
 import open3d as o3d
@@ -139,8 +139,8 @@ def compute_bbox(_corners):
     return x_size, y_size
 
 def compute_geo_ref(_drone_pose):
-    image_width_meters = compute_img_size(CAM_FOV_H, _drone_pose.height)
-    image_height_meters = compute_img_size(CAM_FOV_V, _drone_pose.height)
+    image_width_meters = compute_img_size(config.CAM_FOV_H, _drone_pose.height)
+    image_height_meters = compute_img_size(config.CAM_FOV_V, _drone_pose.height)
 
     meters_per_degree_lat, meters_per_degree_lon = get_meters_per_degree_at_coord(_drone_pose.lat, _drone_pose.long)
 
@@ -329,8 +329,8 @@ def compute_geo_ref_cloud(_input_file: str, _output_file: str, _home_lat: float,
 
 def main():
     compute_geo_ref_rgb(
-        os.path.join(INPUTS_PATH, str(2), 'img_input.png'),
-        os.path.join(OUTPUTS_PATH, str(2), 'img_input_geo_ref.tif'),
+        os.path.join(config.INPUTS_PATH, str(2), config.IMAGE_RGB),
+        os.path.join(config.OUTPUTS_PATH, str(2), config.IMAGE_RGB_GEO_REF),
         DronePose(
             45.3785691,
             -71.9445941,
@@ -339,8 +339,8 @@ def main():
         )
     )
     compute_geo_ref_cloud(
-        os.path.join(INPUTS_PATH, str(2), 'rtabmap_cloud.ply'),
-        os.path.join(OUTPUTS_PATH, str(2), 'rtabmap_cloud.las'),
+        os.path.join(config.INPUTS_PATH, str(2), config.RTABMAP_CLOUD),
+        os.path.join(config.OUTPUTS_PATH, str(2), config.RTABMAP_CLOUD_GEO_REF),
         45.3785691,
         -71.9445941
     )

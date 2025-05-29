@@ -1,8 +1,8 @@
-from config import OUTPUTS_PATH
 from ardulog import add_ardulog
 from deepforest import add_deepforest
 from pcl import add_pcl
 
+import config
 import os
 import pandas as pd
 
@@ -14,7 +14,7 @@ def generate_csv(_species: list[str]=[]):
         df = add_pcl(df, i)
         df['specie'] = _species[i]
 
-        df.to_csv(os.path.join(OUTPUTS_PATH, str(i), 'output.csv'), index=False)
+        df.to_csv(os.path.join(config.OUTPUTS_PATH, str(i), config.OUTPUT_CSV), index=False)
         print(df)
 
 

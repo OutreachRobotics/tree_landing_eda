@@ -1,8 +1,8 @@
 from ardupilot_log_reader.reader import Ardupilot
-from config import INPUTS_PATH
 from geo_proj import get_local_coord
 
 import bisect
+import config
 import numpy as np
 import os
 import pandas as pd
@@ -101,11 +101,11 @@ def add_ardulog(_df, _idx):
 
     #TODO
     coords_s, coords_f = run_ardulog(
-        os.path.join(INPUTS_PATH, 'log_0_2025-5-27-13-19-50.bin'),
+        os.path.join(config.INPUTS_PATH, 'log_0_2025-5-27-13-19-50.bin'),
     )
 
     local_coords_s, local_coords_f = run_home(
-        os.path.join(INPUTS_PATH, str(_idx), 'home.csv'),
+        os.path.join(config.INPUTS_PATH, str(_idx), config.HOME),
         coords_s,
         coords_f
     )
