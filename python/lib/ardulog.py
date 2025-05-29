@@ -70,14 +70,17 @@ def run_ardulog(_filepath_mockup):
     relalt_s = dfs_mockup['XKF1']['PD'][XKF1_idx_list_s].to_list()
     relalt_f = dfs_mockup['XKF1']['PD'][XKF1_idx_list_f].to_list()
 
-    coords_s = np.array([longitudes_s, latitudes_s, relalt_s]).T
-    coords_f = np.array([longitudes_f, latitudes_f, relalt_f]).T
+    coords_s = np.array([latitudes_s, longitudes_s, relalt_s]).T
+    coords_f = np.array([latitudes_f, longitudes_f, relalt_f]).T
 
     return coords_s, coords_f
 
 def run_home(_filepath_home, _coords_s, _coords_f):
     home_csv = pd.read_csv(_filepath_home)
     coord_home = home_csv[['latitude', 'longitude', 'altitude']].iloc[0].tolist()
+
+    # print('coord_home:')
+    # print(coord_home)
 
     local_coords_s = []
     for coord_s in _coords_s:

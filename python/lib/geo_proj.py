@@ -20,7 +20,7 @@ class DronePose:
         # Shifting 0 degrees from heading north to east
         self.yaw = math.radians(_yaw) - math.radians(90)
 
-def get_meters_per_degree_at_coord(_coord_long, _coord_lat):
+def get_meters_per_degree_at_coord(_coord_lat, _coord_long):
     # Define the WGS84 ellipsoid
     geod = Geod(ellps="WGS84")
 
@@ -30,58 +30,68 @@ def get_meters_per_degree_at_coord(_coord_long, _coord_lat):
     # Calculate meters per degree of latitude (change in latitude, keep longitude constant)
     _, _, meters_per_degree_lat = geod.inv(_coord_long, _coord_lat, _coord_long, _coord_lat + 1)
 
-    return meters_per_degree_lon, meters_per_degree_lat
+    return meters_per_degree_lat, meters_per_degree_lon
+
+def compute_transform(_lat, _long, _scale_lat, _scale_long, _yaw, _debug=False):
+    trans_x = _long
+    trans_y = _lat
+    scale_x = _scale_long
+    scale_y = _scale_lat
+    # Create the individual matrices
+    translation_matrix = Affine.translation(trans_x, trans_y)
+    scaling_matrix = Affine.scale(scale_x, scale_y)
+    rotation_matrix = Affine.rotation(math.degrees(_yaw))
+    transform = translation_matrix * scaling_matrix * rotation_matrix
+
+    if _debug:
+        # Print the individual matrices
+        print("\nTranslation Matrix:")
+        print(f"|{translation_matrix.a:.8f}, {translation_matrix.b:.8f}, {translation_matrix.c:.8f}|")
+        print(f"|{translation_matrix.d:.8f}, {translation_matrix.e:.8f}, {translation_matrix.f:.8f}|")
+        print(f"|{translation_matrix.g:.8f}, {translation_matrix.h:.8f}, {translation_matrix.i:.8f}|")
+
+        print("\nRotation Matrix:")
+        print(f"|{rotation_matrix.a:.8f}, {rotation_matrix.b:.8f}, {rotation_matrix.c:.8f}|")
+        print(f"|{rotation_matrix.d:.8f}, {rotation_matrix.e:.8f}, {rotation_matrix.f:.8f}|")
+        print(f"|{rotation_matrix.g:.8f}, {rotation_matrix.h:.8f}, {rotation_matrix.i:.8f}|")
+
+        print("\nScaling Matrix:")
+        print(f"|{scaling_matrix.a:.8f}, {scaling_matrix.b:.8f}, {scaling_matrix.c:.8f}|")
+        print(f"|{scaling_matrix.d:.8f}, {scaling_matrix.e:.8f}, {scaling_matrix.f:.8f}|")
+        print(f"|{scaling_matrix.g:.8f}, {scaling_matrix.h:.8f}, {scaling_matrix.i:.8f}|")
+
+        print(f"\nImage transform:")
+        print(f"|{transform.a:.8f}, {transform.b:.8f}, {transform.c:.8f}|")
+        print(f"|{transform.d:.8f}, {transform.e:.8f}, {transform.f:.8f}|")
+        print(f"|{transform.g:.8f}, {transform.h:.8f}, {transform.i:.8f}|")
+
+    return transform
 
 def get_local_coord(_org, _coord):
-    geod = Geod(ellps="WGS84")
-    _, _, meters_per_degree_lon = geod.inv(_org[0], _org[1], _org[0] + 1, _org[1])
-    _, _, meters_per_degree_lat = geod.inv(_org[0], _org[1], _org[0], _org[1] + 1)
+    meters_per_degree_lat, meters_per_degree_lon = get_meters_per_degree_at_coord(_org[0], _org[1])
+    transform = compute_transform(
+        _org[0],
+        _org[1],
+        1/meters_per_degree_lat,
+        1/meters_per_degree_lon,
+        0
+    )
 
-    scale_x = meters_per_degree_lon
-    scale_y = meters_per_degree_lat
-
-    scaling_matrix = Affine.scale(scale_x, scale_y)
-    translation_matrix = Affine.translation(-_org[0], -_org[1])
-    transform = scaling_matrix * translation_matrix
+    transform_inv = ~transform
 
     # print(f"\nTransform:")
     # print(f"|{transform.a}, {transform.b}, {transform.c}|")
     # print(f"|{transform.d}, {transform.e}, {transform.f}|")
     # print(f"|{transform.g}, {transform.h}, {transform.i}|")
 
-    local_x, local_y = transform * (_coord[0], _coord[1])
+    # print(f"\nTransform_inv:")
+    # print(f"|{transform_inv.a}, {transform_inv.b}, {transform_inv.c}|")
+    # print(f"|{transform_inv.d}, {transform_inv.e}, {transform_inv.f}|")
+    # print(f"|{transform_inv.g}, {transform_inv.h}, {transform_inv.i}|")
+
+    local_x, local_y = transform_inv * (_coord[1], _coord[0])
 
     return np.array([local_x, local_y, _coord[2]])
-
-def compute_transform(_lat, _long, _scale_lat, _scale_long, _yaw):
-    # Create the individual matrices
-    translation_matrix = Affine.translation(_long, _lat)
-    scaling_matrix = Affine.scale(_scale_long, _scale_lat)
-    rotation_matrix = Affine.rotation(math.degrees(_yaw))
-    transform = translation_matrix * scaling_matrix * rotation_matrix
-
-    # Print the individual matrices
-    print("\nTranslation Matrix:")
-    print(f"|{translation_matrix.a:.8f}, {translation_matrix.b:.8f}, {translation_matrix.c:.8f}|")
-    print(f"|{translation_matrix.d:.8f}, {translation_matrix.e:.8f}, {translation_matrix.f:.8f}|")
-    print(f"|{translation_matrix.g:.8f}, {translation_matrix.h:.8f}, {translation_matrix.i:.8f}|")
-
-    print("\nRotation Matrix:")
-    print(f"|{rotation_matrix.a:.8f}, {rotation_matrix.b:.8f}, {rotation_matrix.c:.8f}|")
-    print(f"|{rotation_matrix.d:.8f}, {rotation_matrix.e:.8f}, {rotation_matrix.f:.8f}|")
-    print(f"|{rotation_matrix.g:.8f}, {rotation_matrix.h:.8f}, {rotation_matrix.i:.8f}|")
-
-    print("\nScaling Matrix:")
-    print(f"|{scaling_matrix.a:.8f}, {scaling_matrix.b:.8f}, {scaling_matrix.c:.8f}|")
-    print(f"|{scaling_matrix.d:.8f}, {scaling_matrix.e:.8f}, {scaling_matrix.f:.8f}|")
-    print(f"|{scaling_matrix.g:.8f}, {scaling_matrix.h:.8f}, {scaling_matrix.i:.8f}|")
-
-    print(f"\nImage transform:")
-    print(f"|{transform.a:.8f}, {transform.b:.8f}, {transform.c:.8f}|")
-    print(f"|{transform.d:.8f}, {transform.e:.8f}, {transform.f:.8f}|")
-    print(f"|{transform.g:.8f}, {transform.h:.8f}, {transform.i:.8f}|")
-
-    return transform
 
 
 ### RGB GEO REF ###
@@ -132,7 +142,7 @@ def compute_geo_ref(_drone_pose):
     image_width_meters = compute_img_size(CAM_FOV_H, _drone_pose.height)
     image_height_meters = compute_img_size(CAM_FOV_V, _drone_pose.height)
 
-    meters_per_degree_lon, meters_per_degree_lat = get_meters_per_degree_at_coord(_drone_pose.long, _drone_pose.lat)
+    meters_per_degree_lat, meters_per_degree_lon = get_meters_per_degree_at_coord(_drone_pose.lat, _drone_pose.long)
 
     print(f"Image Width (meters): {image_width_meters:.2f}")
     print(f"Meters per Degree Longitude: {meters_per_degree_lon:.2f}")
@@ -198,15 +208,6 @@ def save_raster(_output_img_name, _png_img, _transform):
             dst.write(_png_img[:, :, band], band + 1)
 
 def compute_geo_ref_rgb(_input_img_name: str, _output_img_name: str, _drone_pose: DronePose):
-    # HEIGHT = 65 # Max accuracy on tree
-    # # HEIGHT = 78 # Real height
-
-    # # CENTER_LAT = 45.377789  # Latitude in degrees
-    # # CENTER_LONG = -71.940123  # Longitude in degrees
-    # CENTER_LAT = 45.3777901  # Latitude in degrees
-    # CENTER_LONG = -71.9401421  # Longitude in degrees
-    # YAW = math.radians(5.605) - math.radians(90)
-
     img_long, img_lat, corners_geo = compute_geo_ref(_drone_pose)
 
     # Find the top-left corner in geographic coordinates
@@ -235,12 +236,6 @@ def compute_geo_ref_rgb(_input_img_name: str, _output_img_name: str, _drone_pose
 
 
 ### CLOUD GEO REF ###
-
-# # rtabmap_cloud
-# ORIGIN_LAT = 45.3777769  # Latitude in degrees
-# ORIGIN_LONG = -71.9403259  # Longitude in degrees
-# # YAW = math.radians(92.82) - math.radians(90)
-# YAW = 0
 
 def compute_cloud_size(_point_cloud):
     # Get the points as a NumPy array
@@ -271,7 +266,7 @@ def affine2pdal(_affine):
     return " ".join(map(str, matrix_3d.flatten()))
 
 def compute_pdal(_transform, _input_file, _output_file):
-        # Flatten the matrix to a space-separated string for PDAL
+    # Flatten the matrix to a space-separated string for PDAL
     pdal_matrix = affine2pdal(_transform)
 
     pipeline_json = """
@@ -310,7 +305,7 @@ def compute_geo_ref_cloud(_input_cloud_name: str, _output_cloud_name: str, _home
     input_file = os.path.join(f'{INPUTS_PATH}', f'{_input_cloud_name}.ply')
     output_file = os.path.join(f'{OUTPUTS_PATH}', f'{_output_cloud_name}.las')
 
-    meters_per_degree_lon, meters_per_degree_lat = get_meters_per_degree_at_coord(_home_long, _home_lat)
+    meters_per_degree_lat, meters_per_degree_lon = get_meters_per_degree_at_coord(_home_lat, _home_long)
 
     # Load the point cloud from the PLY file
     point_cloud = o3d.io.read_point_cloud(input_file)
