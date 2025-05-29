@@ -1,5 +1,6 @@
-from ardulog import run_ardulog, run_home
+from ardulog import run_ardulog, run_home, get_home
 from config import INPUTS_PATH, OUTPUTS_PATH
+from geo_proj import compute_geo_ref_rgb, compute_geo_ref_cloud, DronePose
 
 import numpy as np
 import open3d as o3d
@@ -13,11 +14,11 @@ def add_home(_vis):
     _vis.add_geometry(sphere)
 
 def add_cloud(_vis, _idx):
-    pcd = o3d.io.read_point_cloud(os.path.join(f'{INPUTS_PATH}', f'rtabmap_cloud_{_idx}.ply'))
+    pcd = o3d.io.read_point_cloud(os.path.join(INPUTS_PATH, str(_idx), 'rtabmap_cloud.ply'))
     _vis.add_geometry(pcd)
 
 def add_landing_cloud(_vis, _idx):
-    pcd = o3d.io.read_point_cloud(os.path.join(f'{OUTPUTS_PATH}', f'landing_cloud_{_idx}.ply'))
+    pcd = o3d.io.read_point_cloud(os.path.join(INPUTS_PATH, str(_idx), 'landings_cloud.ply'))
 
     _vis.add_geometry(pcd)
 
@@ -27,7 +28,7 @@ def add_landing_cloud(_vis, _idx):
         sphere.translate(pcd.points[i])
         _vis.add_geometry(sphere)
 
-def save_landing_cloud(_log_file, _idx):
+def get_local_coords(_log_file, _idx):
     coords_s, coords_f = run_ardulog(_log_file)
 
     # print('coords_s:')
@@ -36,7 +37,7 @@ def save_landing_cloud(_log_file, _idx):
     # print(coords_f)
 
     local_coords_s, local_coords_f = run_home(
-        os.path.join(INPUTS_PATH, f'home_{_idx}.csv'),
+        os.path.join(INPUTS_PATH, str(_idx), 'home.csv'),
         coords_s,
         coords_f
     )
@@ -45,6 +46,11 @@ def save_landing_cloud(_log_file, _idx):
     # print(local_coords_s)
     # print('local_coords_f:')
     # print(local_coords_f)
+
+    return local_coords_s, local_coords_f
+
+def save_landing_cloud(_log_file, _idx):
+    local_coords_s, local_coords_f = get_local_coords(_log_file, _idx)
 
     # Create separate point clouds
     success_pcd = o3d.geometry.PointCloud()
@@ -61,10 +67,33 @@ def save_landing_cloud(_log_file, _idx):
     combined_pcd = success_pcd + failure_pcd
 
     # Save as PLY file
-    o3d.io.write_point_cloud(os.path.join(f'{OUTPUTS_PATH}', f'landing_cloud_{_idx}.ply'), combined_pcd, write_ascii=False)
+    o3d.io.write_point_cloud(os.path.join(INPUTS_PATH, str(_idx), 'landings_cloud.ply'), combined_pcd, write_ascii=False)
 
 def viz(_idx):
-    save_landing_cloud(os.path.join(f'{INPUTS_PATH}', 'log_0_2025-5-27-13-19-50.bin'), _idx)
+    coord_home = get_home(os.path.join(INPUTS_PATH, str(_idx), 'home.csv'))
+    save_landing_cloud(os.path.join(INPUTS_PATH, 'logs', 'log_0_2025-5-27-13-19-50.bin'), _idx)
+    compute_geo_ref_rgb(
+        os.path.join(INPUTS_PATH, str(_idx), 'img_input.png'),
+        os.path.join(OUTPUTS_PATH, str(_idx), 'img_input_geo_ref.tif'),
+        DronePose(
+            45.3785691,
+            -71.9445941,
+            65,
+            5.3
+        )
+    )
+    compute_geo_ref_cloud(
+        os.path.join(INPUTS_PATH, str(_idx), 'rtabmap_cloud.ply'),
+        os.path.join(OUTPUTS_PATH, str(_idx), 'rtabmap_cloud.las'),
+        coord_home[0],
+        coord_home[1]
+    )
+    compute_geo_ref_cloud(
+        os.path.join(INPUTS_PATH, str(_idx), 'landings_cloud.ply'),
+        os.path.join(OUTPUTS_PATH, str(_idx), 'landings_cloud.las'),
+        coord_home[0],
+        coord_home[1]
+    )
 
     # Start visualizer
     vis = o3d.visualization.Visualizer()

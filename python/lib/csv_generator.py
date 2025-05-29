@@ -14,7 +14,7 @@ def generate_csv(_species: list[str]=[]):
         df = add_pcl(df, i)
         df['specie'] = _species[i]
 
-        df.to_csv(os.path.join(f'{OUTPUTS_PATH}', f'output_{i}.csv'), index=False)
+        df.to_csv(os.path.join(OUTPUTS_PATH, str(i), 'output.csv'), index=False)
         print(df)
 
 

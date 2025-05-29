@@ -75,9 +75,13 @@ def run_ardulog(_filepath_mockup):
 
     return coords_s, coords_f
 
-def run_home(_filepath_home, _coords_s, _coords_f):
+def get_home(_filepath_home):
     home_csv = pd.read_csv(_filepath_home)
     coord_home = home_csv[['latitude', 'longitude', 'altitude']].iloc[0].tolist()
+    return coord_home
+
+def run_home(_filepath_home, _coords_s, _coords_f):
+    coord_home = get_home(_filepath_home)
 
     # print('coord_home:')
     # print(coord_home)
@@ -97,11 +101,11 @@ def add_ardulog(_df, _idx):
 
     #TODO
     coords_s, coords_f = run_ardulog(
-        os.path.join(f'{INPUTS_PATH}', 'log_0_2025-5-27-13-19-50.bin'),
+        os.path.join(INPUTS_PATH, 'log_0_2025-5-27-13-19-50.bin'),
     )
 
     local_coords_s, local_coords_f = run_home(
-        os.path.join(f'{INPUTS_PATH}', f'home_{_idx}.csv'),
+        os.path.join(INPUTS_PATH, str(_idx), 'home.csv'),
         coords_s,
         coords_f
     )

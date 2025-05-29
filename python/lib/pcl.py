@@ -30,15 +30,15 @@ def add_pcl(_df, _idx):
         landing_x = str(12.0) + str(i)
         landing_y = str(16.0) + str(i)
         args = [
-            os.path.join(f'{INPUTS_PATH}', f'rtabmap_cloud_{_idx}.ply'),
-            os.path.join(f'{OUTPUTS_PATH}', f'output_pcl_{_idx}.csv'),
+            os.path.join(INPUTS_PATH, str(_idx), 'rtabmap_cloud.ply'),
+            os.path.join(OUTPUTS_PATH, str(_idx), 'output_pcl.csv'),
             landing_x, # str(_df.at[i, 'landing_x'])
             landing_y, # str(_df.at[i, 'landing_y'])
             str(_df.at[i, 'center_x']),
             str(_df.at[i, 'center_y'])
         ]
         run_pcl(args)
-        pcl_csv = pd.read_csv(os.path.join(f'{OUTPUTS_PATH}', f'output_pcl_{_idx}.csv'))
+        pcl_csv = pd.read_csv(os.path.join(OUTPUTS_PATH, str(_idx), 'output_pcl.csv'))
         pcl_data.append(pcl_csv.iloc[0].to_dict())
 
     df_pcl = pd.DataFrame(pcl_data)

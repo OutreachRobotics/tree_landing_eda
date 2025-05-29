@@ -7,7 +7,7 @@ import pandas as pd
 def pixel_to_map(_u, _v, _idx):
     pix = np.array([_u, _v, 1, 1])
     TZKinv = np.loadtxt(
-        os.path.join(f'{INPUTS_PATH}', f'TZKinv_{_idx}.txt'),
+        os.path.join(INPUTS_PATH, str(_idx), 'TZKinv.txt'),
         dtype=np.float64,  # Force 64-bit precision
         delimiter=None,     # Auto-detect whitespace
         ndmin=2            # Ensure 2D even if file has 1 row
@@ -52,6 +52,6 @@ def compute_target(_boxes, _idx):
     return pd.DataFrame(data)
 
 def add_deepforest(_df, _idx):
-    boxes_csv = pd.read_csv(os.path.join(f'{INPUTS_PATH}', f'boxes_{_idx}.csv'))
+    boxes_csv = pd.read_csv(os.path.join(INPUTS_PATH, str(_idx), 'boxes.csv'))
     df_deepforest = compute_target(boxes_csv, _idx)
     return pd.concat([_df, df_deepforest])
