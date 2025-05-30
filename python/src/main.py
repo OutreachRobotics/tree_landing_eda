@@ -13,15 +13,16 @@ sys.path.insert(0, str(lib_path))
 print(f"Project root: {project_root}")
 print(f"Current sys.path: {sys.path}")
 
-from config import OUTPUTS_PATH
 from csv_generator import generate_csv
 from visualizer import viz
+
+import config
 
 
 def main():
    species = ['maple', 'chestnut', 'birch']
    for i in range(len(species)):
-      os.makedirs(os.path.join(OUTPUTS_PATH, str(i)), exist_ok=True)
+      os.makedirs(os.path.join(config.OUTPUTS_PATH, str(i)), exist_ok=True)
    # generate_csv(species)
    # viz(2)
 

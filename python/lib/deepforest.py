@@ -6,7 +6,7 @@ import pandas as pd
 def pixel_to_map(_u, _v, _idx):
     pix = np.array([_u, _v, 1, 1])
     TZKinv = np.loadtxt(
-        os.path.join(config.INPUTS_PATH, str(_idx), config.TZKINV),
+        os.path.join(config.INPUTS_PATH, str(_idx), config.TZKINV_TXT),
         dtype=np.float64,  # Force 64-bit precision
         delimiter=None,     # Auto-detect whitespace
         ndmin=2            # Ensure 2D even if file has 1 row

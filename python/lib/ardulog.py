@@ -1,5 +1,5 @@
 from ardupilot_log_reader.reader import Ardupilot
-from geo_proj import get_local_coord
+from geo_proj import get_local_coord, get_home
 
 import bisect
 import config
@@ -75,11 +75,6 @@ def run_ardulog(_filepath_mockup):
 
     return coords_s, coords_f
 
-def get_home(_filepath_home):
-    home_csv = pd.read_csv(_filepath_home)
-    coord_home = home_csv[['latitude', 'longitude', 'altitude']].iloc[0].tolist()
-    return coord_home
-
 def run_home(_filepath_home, _coords_s, _coords_f):
     coord_home = get_home(_filepath_home)
 
@@ -105,7 +100,7 @@ def add_ardulog(_df, _idx):
     )
 
     local_coords_s, local_coords_f = run_home(
-        os.path.join(config.INPUTS_PATH, str(_idx), config.HOME),
+        os.path.join(config.INPUTS_PATH, str(_idx), config.HOME_CSV),
         coords_s,
         coords_f
     )

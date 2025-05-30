@@ -7,18 +7,29 @@ import math
 import numpy as np
 import open3d as o3d
 import os
+import pandas as pd
 import pdal
 import rasterio
 
 
 class DronePose:
-    def __init__(self, _lat, _long, _height, _yaw):
+    def __init__(self, _lat, _long, _rel_alt, _yaw):
         self.lat = _lat    # Latitude
         self.long = _long  # Longitude
-        self.height = _height  # Altitude/height
+        self.rel_alt = _rel_alt  # Altitude/height
         # Transforming from deg to rad and
         # Shifting 0 degrees from heading north to east
         self.yaw = math.radians(_yaw) - math.radians(90)
+
+def get_home(_filepath_home):
+    home_csv = pd.read_csv(_filepath_home)
+    coord_home = home_csv[['latitude', 'longitude', 'altitude']].iloc[0].tolist()
+    return coord_home
+
+def get_global_pose(_filepath_pose):
+    global_pose_csv = pd.read_csv(_filepath_pose)
+    global_pose = global_pose_csv[['latitude', 'longitude', 'rel_alt', 'yaw']].iloc[0].tolist()
+    return global_pose
 
 def get_meters_per_degree_at_coord(_coord_lat, _coord_long):
     # Define the WGS84 ellipsoid
@@ -96,8 +107,14 @@ def get_local_coord(_org, _coord):
 
 ### RGB GEO REF ###
 
-def compute_img_size(_fov, _height):
-    return 2*_height*math.tan(math.radians(_fov/2.0))
+def compute_pixel_size(_fov, _full_res, _height):
+    length = 2*_height*math.tan(math.radians(_fov/2.0))
+    return float(length / float(_full_res))
+
+
+def compute_img_size(_fov, _full_res, _partial_res, _height):
+    pixel_size = compute_pixel_size(_fov, _full_res, _height)
+    return pixel_size * _partial_res
 
 def rotate_corners(_corners, _yaw):
     """
@@ -138,18 +155,20 @@ def compute_bbox(_corners):
 
     return x_size, y_size
 
-def compute_geo_ref(_drone_pose):
-    image_width_meters = compute_img_size(config.CAM_FOV_H, _drone_pose.height)
-    image_height_meters = compute_img_size(config.CAM_FOV_V, _drone_pose.height)
+def compute_geo_ref(_drone_pose, _png_img):
+    image_height_pixels = _png_img.shape[0]
+    image_width_pixels = _png_img.shape[1]
+    image_width_meters = compute_img_size(config.CAM_FOV_H, config.CAM_RES_H, image_width_pixels, _drone_pose.rel_alt)
+    image_height_meters = compute_img_size(config.CAM_FOV_V, config.CAM_RES_V, image_height_pixels, _drone_pose.rel_alt)
 
     meters_per_degree_lat, meters_per_degree_lon = get_meters_per_degree_at_coord(_drone_pose.lat, _drone_pose.long)
 
-    print(f"Image Width (meters): {image_width_meters:.2f}")
+    print(f"\n\nImage Width (meters): {image_width_meters:.2f}")
     print(f"Meters per Degree Longitude: {meters_per_degree_lon:.2f}")
     print(f"Image Height (meters): {image_height_meters:.2f}")
     print(f"Meters per Degree Latitude: {meters_per_degree_lat:.2f}")
     print(f"Meters per degree of longitude at latitude {_drone_pose.lat}: {meters_per_degree_lon}")
-    print(f"Meters per degree of latitude at latitude {_drone_pose.lat}: {meters_per_degree_lat}")
+    print(f"Meters per degree of latitude at latitude {_drone_pose.lat}: {meters_per_degree_lat}\n\n")
 
     # Convert the rotated local coordinates to geographic coordinates
     corners_meters = get_corners(image_width_meters, image_height_meters)
@@ -207,19 +226,22 @@ def save_raster(_output_img_file, _png_img, _transform):
         for band in range(3):
             dst.write(_png_img[:, :, band], band + 1)
 
-def compute_geo_ref_rgb(_input_img_file: str, _output_img_file: str, _drone_pose: DronePose):
-    img_long, img_lat, corners_geo = compute_geo_ref(_drone_pose)
+def compute_geo_ref_rgb(_input_img_file: str, _input_img_pose_file: str, _output_img_file: str):
+    global_pose = get_global_pose(_input_img_pose_file)
+    drone_pose = DronePose(global_pose[0], global_pose[1], global_pose[2], global_pose[3])
+
+    # Load the PNG image as a numpy array
+    png_image = image.imread(_input_img_file)
+
+    img_long, img_lat, corners_geo = compute_geo_ref(drone_pose, png_image)
 
     # Find the top-left corner in geographic coordinates
     top_left_lon = corners_geo[0][0]
     top_left_lat = corners_geo[0][1]
 
-    # Load the PNG image as a numpy array
-    png_image = image.imread(_input_img_file)
-
     pixel_size_lat, pixel_size_long = compute_scale(
         png_image,
-        _drone_pose.yaw,
+        drone_pose.yaw,
         img_lat,
         img_long,
         corners_geo
@@ -230,7 +252,7 @@ def compute_geo_ref_rgb(_input_img_file: str, _output_img_file: str, _drone_pose
         top_left_lon,
         -pixel_size_lat, # Invert y axis
         pixel_size_long,
-        -_drone_pose.yaw # Invert rotation because of inverted y axis
+        -drone_pose.yaw # Invert rotation because of inverted y axis
     )
     save_raster(_output_img_file, png_image, transform)
 
@@ -301,8 +323,12 @@ def compute_pdal(_transform, _input_file, _output_file):
     # Execute the pipeline
     pipeline.execute()
 
-def compute_geo_ref_cloud(_input_file: str, _output_file: str, _home_lat: float, _home_long: float):
-    meters_per_degree_lat, meters_per_degree_lon = get_meters_per_degree_at_coord(_home_lat, _home_long)
+def compute_geo_ref_cloud(_input_file: str, _home_file: str, _output_file: str):
+    coord_home = get_home(_home_file)
+    home_lat = coord_home[0]
+    home_long = coord_home[1]
+
+    meters_per_degree_lat, meters_per_degree_lon = get_meters_per_degree_at_coord(home_lat, home_long)
 
     # Load the point cloud from the PLY file
     point_cloud = o3d.io.read_point_cloud(_input_file)
@@ -317,8 +343,8 @@ def compute_geo_ref_cloud(_input_file: str, _output_file: str, _home_lat: float,
     print(f"1/meters_per_degree_lat: {1/meters_per_degree_lat:.10f}")
 
     transform = compute_transform(
-        _home_lat,
-        _home_long,
+        home_lat,
+        home_long,
         1/meters_per_degree_lat,
         1/meters_per_degree_lon,
         0 # Local frame is usually already aligned with global frame
@@ -329,20 +355,22 @@ def compute_geo_ref_cloud(_input_file: str, _output_file: str, _home_lat: float,
 
 def main():
     compute_geo_ref_rgb(
-        os.path.join(config.INPUTS_PATH, str(2), config.IMAGE_RGB),
-        os.path.join(config.OUTPUTS_PATH, str(2), config.IMAGE_RGB_GEO_REF),
-        DronePose(
-            45.3785691,
-            -71.9445941,
-            65,
-            5.3
-        )
+        os.path.join(config.INPUTS_PATH, str(2), config.IMAGE_RGB_PNG),
+        os.path.join(config.INPUTS_PATH, str(2), config.IMAGE_RGB_POSE_CSV),
+        os.path.join(config.OUTPUTS_PATH, str(2), config.IMAGE_RGB_GEO_REF_TIF)
+        # DronePose(
+        #     45.3785691,
+        #     -71.9445941,
+        #     65,
+        #     5.3
+        # )
     )
     compute_geo_ref_cloud(
-        os.path.join(config.INPUTS_PATH, str(2), config.RTABMAP_CLOUD),
-        os.path.join(config.OUTPUTS_PATH, str(2), config.RTABMAP_CLOUD_GEO_REF),
-        45.3785691,
-        -71.9445941
+        os.path.join(config.INPUTS_PATH, str(2), config.RTABMAP_CLOUD_PLY),
+        os.path.join(config.INPUTS_PATH, str(2), config.HOME_CSV),
+        os.path.join(config.OUTPUTS_PATH, str(2), config.RTABMAP_CLOUD_GEO_REF_LAS)
+        # 45.3785691,
+        # -71.9445941
     )
 
 if __name__=="__main__":
