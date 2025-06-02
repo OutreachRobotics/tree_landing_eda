@@ -96,7 +96,7 @@ def add_ardulog(_df, _idx):
 
     #TODO
     coords_s, coords_f = run_ardulog(
-        os.path.join(config.INPUTS_PATH, 'log_0_2025-5-27-13-19-50.bin'),
+        os.path.join(config.LOGS_PATH, 'log_0_2025-5-27-13-19-50.bin'),
     )
 
     local_coords_s, local_coords_f = run_home(

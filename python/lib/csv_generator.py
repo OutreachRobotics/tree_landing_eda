@@ -17,9 +17,20 @@ def generate_csv(_species: list[str]=[]):
         df.to_csv(os.path.join(config.OUTPUTS_PATH, str(i), config.OUTPUT_CSV), index=False)
         print(df)
 
+def generate_csv(_idx, _specie):
+    df = pd.DataFrame()
+    df = add_deepforest(df, _idx)
+    df = add_ardulog(df, _idx)
+    df = add_pcl(df, _idx)
+    df['specie'] = _specie
+
+    df.to_csv(os.path.join(config.OUTPUTS_PATH, str(_idx), config.OUTPUT_CSV), index=False)
+    print(df)
+
 
 def main():
-    generate_csv(['birch', 'maple'])
+    # generate_csv(['birch', 'maple'])
+    generate_csv(2, 'birch')
 
 
 if __name__=="__main__":
