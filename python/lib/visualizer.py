@@ -103,7 +103,7 @@ def viz(_idx):
 
 
 def main():
-    viz(3)
+    viz(2)
 
 if __name__=="__main__":
     main()

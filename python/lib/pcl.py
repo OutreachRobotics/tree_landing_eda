@@ -26,13 +26,11 @@ def run_pcl(_args):
 def add_pcl(_df, _idx):
     pcl_data = []
     for i in range(len(_df)):
-        landing_x = str(12.0) + str(i)
-        landing_y = str(16.0) + str(i)
         args = [
             os.path.join(config.INPUTS_PATH, str(_idx), config.RTABMAP_CLOUD_PLY),
             os.path.join(config.OUTPUTS_PATH, str(_idx), config.PCL_CSV),
-            landing_x, # str(_df.at[i, 'landing_x'])
-            landing_y, # str(_df.at[i, 'landing_y'])
+            str(_df.at[i, 'landing_x']),
+            str(_df.at[i, 'landing_y']),
             str(_df.at[i, 'center_x']),
             str(_df.at[i, 'center_y'])
         ]
