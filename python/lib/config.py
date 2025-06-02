@@ -18,6 +18,7 @@ PCL_CSV = 'output_pcl.csv'
 BOXES_CSV = 'boxes.csv'
 TZKINV_TXT = 'TZKinv.txt'
 OUTPUT_CSV = 'output.csv'
+DECISIONTREE_SVG = 'decisiontree.svg'
 
 CAM_FOV_H = 87
 CAM_FOV_V = 58

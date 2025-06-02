@@ -29,6 +29,9 @@ def generate_csv(_idx, _specie):
 
 
 def main():
+    pd.set_option('display.max_rows', None)  # Show all rows
+    pd.set_option('display.max_columns', None)  # Show all columns
+
     # generate_csv(['birch', 'maple'])
     generate_csv(2, 'birch')
 

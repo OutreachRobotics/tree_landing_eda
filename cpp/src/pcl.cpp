@@ -637,8 +637,22 @@ int main(int argc, char* argv[]) {
     bool isDFInbound = checkInboundPoints(min_pt, max_pt, df_x, df_y);
 
     if(!isLandingInbound || !isDFInbound){
-        std::cout << "\n\nWARNING: Saving empty csv line because a point is not inbound\n\n";
-        saveToCSV(output_csv_path, pcl::PrincipalCurvatures(), 0.0, 0.0, 0.0, std::vector<float>({0.0, 0.0, 0.0, 0.0}));
+        std::cout << "\n\nWARNING: Saving nan csv line because a point is not inbound\n\n";
+        saveToCSV(
+            output_csv_path,
+            pcl::PrincipalCurvatures(
+                std::numeric_limits<float>::quiet_NaN(),
+                std::numeric_limits<float>::quiet_NaN()
+            ),
+            std::numeric_limits<float>::quiet_NaN(),
+            std::numeric_limits<float>::quiet_NaN(),
+            std::numeric_limits<float>::quiet_NaN(),
+            std::vector<float>({
+                std::numeric_limits<float>::quiet_NaN(),
+                std::numeric_limits<float>::quiet_NaN(),
+                std::numeric_limits<float>::quiet_NaN(),
+                std::numeric_limits<float>::quiet_NaN()
+            }));
         return 0;
     }
 
