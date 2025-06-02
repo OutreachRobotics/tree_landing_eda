@@ -25,7 +25,7 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr loadPly(std::string _filePath){
 
     // Load the .ply file
     if (pcl::io::loadPLYFile<pcl::PointXYZRGB>(_filePath, *cloud) == -1) {
-        std::cerr << "Error: Could not load .ply file: " << _filePath << std::endl;
+        std::cout << "Error: Could not load .ply file: " << _filePath << std::endl;
         return pcl::PointCloud<pcl::PointXYZRGB>::Ptr();
     }
 
@@ -33,16 +33,16 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr loadPly(std::string _filePath){
     std::cout << "Loaded " << cloud->width * cloud->height << " points from " << _filePath << std::endl;
 
     // Print the first 5 points with their RGB values (optional)
-    for (size_t i = 0; i < 5 && i < cloud->points.size(); ++i) {
-        const auto& point = cloud->points[i];
-        std::cout << "Point " << i << ": "
-                  << "X: " << point.x << ", "
-                  << "Y: " << point.y << ", "
-                  << "Z: " << point.z << ", "
-                  << "R: " << static_cast<int>(point.r) << ", "
-                  << "G: " << static_cast<int>(point.g) << ", "
-                  << "B: " << static_cast<int>(point.b) << std::endl;
-    }
+    // for (size_t i = 0; i < 5 && i < cloud->points.size(); ++i) {
+    //     const auto& point = cloud->points[i];
+    //     std::cout << "Point " << i << ": "
+    //               << "X: " << point.x << ", "
+    //               << "Y: " << point.y << ", "
+    //               << "Z: " << point.z << ", "
+    //               << "R: " << static_cast<int>(point.r) << ", "
+    //               << "G: " << static_cast<int>(point.g) << ", "
+    //               << "B: " << static_cast<int>(point.b) << std::endl;
+    // }
 
     return cloud;
 }
@@ -484,17 +484,17 @@ bool checkInboundPoints(const pcl::PointXYZRGB _min_pt, const pcl::PointXYZRGB _
     float c_x = width / 2.0 + _min_pt.x;
     float c_y = height / 2.0 + _min_pt.y;
 
-    std::cout << "\n" << "AABB Dimensions: "
-            << width << " (W) x "
-            << height << " (H) x "
-            << depth << " (D)\n\n";
+    // std::cout << "\n" << "AABB Dimensions: "
+    //         << width << " (W) x "
+    //         << height << " (H) x "
+    //         << depth << " (D)\n\n";
 
     if(_x < _min_pt.x || _x > _max_pt.x){
-        std::cerr << "WARNING: Target point out of bound: " << _min_pt.x << " < " << _x << " < " << _max_pt.x << "\n";
+        std::cout << "\n\nWARNING: Target point out of bound: " << _min_pt.x << " < " << _x << " < " << _max_pt.x << "\n\n";
         isPointInBound = false;
     }
     if(_y < _min_pt.y || _y > _max_pt.y){
-        std::cerr << "WARNING: Target point out of bound: " << _min_pt.y << " < " << _y << " < " << _max_pt.y << "\n\n\n";
+        std::cout << "\n\nWARNING: Target point out of bound: " << _min_pt.y << " < " << _y << " < " << _max_pt.y << "\n\n";
         isPointInBound = false;
     }
 
@@ -514,7 +514,7 @@ void saveToCSV(
     file.open(_filename);
 
     if (!file.is_open()) {
-        std::cerr << "Error: Could not open file " << _filename << " for writing." << std::endl;
+        std::cout << "\n\nError: Could not open file " << _filename << " for writing.\n\n" << std::endl;
         return;
     }
 
@@ -602,10 +602,10 @@ void view(const std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> _clouds){
 }
 
 int main(int argc, char* argv[]) {
-    // std::cerr << "Number of args received: " << argc << "\n";
+    // std::cout << "Number of args received: " << argc << "\n";
 
-    std::string ply_file_path = "/home/docker/tree_landing_eda/data/inputs/rtabmap_cloud_0.ply";
-    std::string output_csv_path = "/home/docker/tree_landing_eda/data/outputs/output_pcl_0.csv";
+    std::string ply_file_path = "/home/docker/tree_landing_eda/data/inputs/2/rtabmap_cloud.ply";
+    std::string output_csv_path = "/home/docker/tree_landing_eda/data/outputs/2/output_pcl.csv";
     float landing_x = -12.50081099;
     float landing_y = 16.76794873;
     float df_x = -12.0;
@@ -624,7 +624,7 @@ int main(int argc, char* argv[]) {
         shouldView = false;
     }
     else if (argc != 1) {
-        std::cerr << "Usage: " << argv[0] << " <ply_file_path> <landing_x> <landing_y> <center_x> <center_y> <output_csv_path>\n";
+        std::cout << "Usage: " << argv[0] << " <ply_file_path> <landing_x> <landing_y> <center_x> <center_y> <output_csv_path>\n";
         return 1;
     }
 
@@ -637,8 +637,8 @@ int main(int argc, char* argv[]) {
     bool isDFInbound = checkInboundPoints(min_pt, max_pt, df_x, df_y);
 
     if(!isLandingInbound || !isDFInbound){
+        std::cout << "\n\nWARNING: Saving empty csv line because a point is not inbound\n\n";
         saveToCSV(output_csv_path, pcl::PrincipalCurvatures(), 0.0, 0.0, 0.0, std::vector<float>({0.0, 0.0, 0.0, 0.0}));
-        std::cerr << "***Saving empty csv line because a point isn't inbound***\n";
         return 0;
     }
 
