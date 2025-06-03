@@ -26,8 +26,8 @@ def add_landing_cloud(_vis, _idx):
         sphere.translate(pcd.points[i])
         _vis.add_geometry(sphere)
 
-def get_local_coords(_log_file, _idx):
-    coords_s, coords_f = run_ardulog(_log_file)
+def get_local_coords(_idx):
+    coords_s, coords_f = run_ardulog(_idx)
 
     # print('coords_s:')
     # print(coords_s)
@@ -47,8 +47,8 @@ def get_local_coords(_log_file, _idx):
 
     return local_coords_s, local_coords_f
 
-def save_landing_cloud(_log_file, _idx):
-    local_coords_s, local_coords_f = get_local_coords(_log_file, _idx)
+def save_landing_cloud(_idx):
+    local_coords_s, local_coords_f = get_local_coords(_idx)
 
     # local_coords_s = [[x - 24.0, y + 26.0, z + 3.0] for x, y, z in local_coords_s]
     # local_coords_f = [[x - 24.0, y + 26.0, z + 3.0] for x, y, z in local_coords_f]
@@ -72,7 +72,7 @@ def save_landing_cloud(_log_file, _idx):
 
 def viz(_idx):
     os.makedirs(os.path.join(config.OUTPUTS_PATH, str(_idx)), exist_ok=True)
-    save_landing_cloud(os.path.join(config.LOGS_PATH, 'log_0_2025-5-27-13-19-50.bin'), _idx)
+    save_landing_cloud(_idx)
     compute_geo_ref_rgb(
         os.path.join(config.INPUTS_PATH, str(_idx), config.IMAGE_RGB_PNG),
         os.path.join(config.INPUTS_PATH, str(_idx), config.IMAGE_RGB_POSE_CSV),
@@ -103,7 +103,7 @@ def viz(_idx):
 
 
 def main():
-    viz(2)
+    viz(1)
 
 if __name__=="__main__":
     main()

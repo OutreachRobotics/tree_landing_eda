@@ -33,7 +33,7 @@ def main():
     pd.set_option('display.max_columns', None)  # Show all columns
 
     # generate_csv(['birch', 'maple'])
-    generate_csv(2, 'birch')
+    generate_csv(1, 'birch')
 
 
 if __name__=="__main__":

@@ -7,6 +7,17 @@ import numpy as np
 import os
 import pandas as pd
 
+def get_log(_idx):
+    prefix = f'log_'
+    folder_path = os.path.join(config.INPUTS_PATH, str(_idx))
+    # List all files in the directory
+    for filename in os.listdir(folder_path):
+        # Check if the file starts with the prefix and ends with '.bin'
+        if filename.startswith(prefix) and filename.endswith('.bin'):
+            # Join the folder path with the filename to get the full path
+            return os.path.join(folder_path, filename)
+    return None  # Return None if no matching file is found
+
 def extract_rising_edges(_timestamps, _signal, _threshold):
     rising_edges_timestamps = []
     is_rised = False
@@ -45,9 +56,10 @@ def find_closest_timestamps_idx(_input_timestamps, _timestamps_list):
     
     return closest_indices
 
-def run_ardulog(_filepath_mockup):
+def run_ardulog(_idx):
+    filepath_mockup = get_log(_idx)
     type_request = ['RCIN', 'IMU', 'POS', 'BARO', 'MODE', 'MAG', 'XKF1', 'ORGN']
-    output = Ardupilot.parse(_filepath_mockup, types=type_request, zero_time_base=True)
+    output = Ardupilot.parse(filepath_mockup, types=type_request, zero_time_base=True)
     dfs_mockup = output.dfs
 
     ### Extract landing positions ###
@@ -93,11 +105,7 @@ def run_home(_filepath_home, _coords_s, _coords_f):
 
 def add_ardulog(_df, _idx):
     df = _df.copy()
-
-    #TODO
-    coords_s, coords_f = run_ardulog(
-        os.path.join(config.LOGS_PATH, 'log_0_2025-5-27-13-19-50.bin'),
-    )
+    coords_s, coords_f = run_ardulog(_idx)
 
     local_coords_s, local_coords_f = run_home(
         os.path.join(config.INPUTS_PATH, str(_idx), config.HOME_CSV),

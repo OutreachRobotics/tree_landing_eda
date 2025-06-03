@@ -42,6 +42,8 @@ def compute_target(_boxes, _idx):
     data = {
         'center_x': [center[0]],
         'center_y': [center[1]],
+        # 'center_x': -55.0,
+        # 'center_y': 20.0,
         'center_z': [center[2]],
         'smallest_side': [smallest_side],
         'diagonal': [diagonal],

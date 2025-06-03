@@ -4,7 +4,6 @@ WS_PATH = os.path.join(os.path.expanduser('~'), 'tree_landing_eda')
 
 INPUTS_PATH = os.path.join(WS_PATH, 'data', 'inputs')
 OUTPUTS_PATH = os.path.join(WS_PATH, 'data', 'outputs')
-LOGS_PATH = os.path.join(WS_PATH, 'data', 'logs')
 
 HOME_CSV = 'home.csv'
 IMAGE_RGB_PNG = os.path.join('img_input', 'img_input.png')
