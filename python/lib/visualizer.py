@@ -21,7 +21,7 @@ def add_landing_cloud(_vis, _idx):
     _vis.add_geometry(pcd)
 
     for i in range(len(pcd.points)):
-        sphere = o3d.geometry.TriangleMesh.create_sphere(radius=1.0)
+        sphere = o3d.geometry.TriangleMesh.create_sphere(radius=0.8)
         sphere.paint_uniform_color(pcd.colors[i])
         sphere.translate(pcd.points[i])
         _vis.add_geometry(sphere)
@@ -70,32 +70,35 @@ def save_landing_cloud(_idx):
     # Save as PLY file
     o3d.io.write_point_cloud(os.path.join(config.INPUTS_PATH, str(_idx), config.LANDINGS_CLOUD_PLY), combined_pcd, write_ascii=False)
 
-def viz(_idx):
-    os.makedirs(os.path.join(config.OUTPUTS_PATH, str(_idx)), exist_ok=True)
-    save_landing_cloud(_idx)
-    compute_geo_ref_rgb(
-        os.path.join(config.INPUTS_PATH, str(_idx), config.IMAGE_RGB_PNG),
-        os.path.join(config.INPUTS_PATH, str(_idx), config.IMAGE_RGB_POSE_CSV),
-        os.path.join(config.OUTPUTS_PATH, str(_idx), config.IMAGE_RGB_GEO_REF_TIF)
-    )
-    compute_geo_ref_cloud(
-        os.path.join(config.INPUTS_PATH, str(_idx), config.RTABMAP_CLOUD_PLY),
-        os.path.join(config.INPUTS_PATH, str(_idx), config.HOME_CSV),
-        os.path.join(config.OUTPUTS_PATH, str(_idx), config.RTABMAP_CLOUD_GEO_REF_LAS)
-    )
-    compute_geo_ref_cloud(
-        os.path.join(config.INPUTS_PATH, str(_idx), config.LANDINGS_CLOUD_PLY),
-        os.path.join(config.INPUTS_PATH, str(_idx), config.HOME_CSV),
-        os.path.join(config.OUTPUTS_PATH, str(_idx), config.LANDINGS_CLOUD_GEO_REF_LAS)
-    )
+def viz(_idx, _rtabmap_only):
+    if not _rtabmap_only:
+        os.makedirs(os.path.join(config.OUTPUTS_PATH, str(_idx)), exist_ok=True)
+        save_landing_cloud(_idx)
+        compute_geo_ref_rgb(
+            os.path.join(config.INPUTS_PATH, str(_idx), config.IMAGE_RGB_PNG),
+            os.path.join(config.INPUTS_PATH, str(_idx), config.IMAGE_RGB_POSE_CSV),
+            os.path.join(config.OUTPUTS_PATH, str(_idx), config.IMAGE_RGB_GEO_REF_TIF)
+        )
+        compute_geo_ref_cloud(
+            os.path.join(config.INPUTS_PATH, str(_idx), config.RTABMAP_CLOUD_PLY),
+            os.path.join(config.INPUTS_PATH, str(_idx), config.HOME_CSV),
+            os.path.join(config.OUTPUTS_PATH, str(_idx), config.RTABMAP_CLOUD_GEO_REF_LAS)
+        )
+        compute_geo_ref_cloud(
+            os.path.join(config.INPUTS_PATH, str(_idx), config.LANDINGS_CLOUD_PLY),
+            os.path.join(config.INPUTS_PATH, str(_idx), config.HOME_CSV),
+            os.path.join(config.OUTPUTS_PATH, str(_idx), config.LANDINGS_CLOUD_GEO_REF_LAS)
+        )
 
     # Start visualizer
     vis = o3d.visualization.Visualizer()
     vis.create_window()
 
-    add_home(vis)
     add_cloud(vis, _idx)
-    add_landing_cloud(vis, _idx)
+
+    if not _rtabmap_only:
+        add_home(vis)
+        add_landing_cloud(vis, _idx)
 
     # Run visualization
     vis.run()
@@ -103,7 +106,7 @@ def viz(_idx):
 
 
 def main():
-    viz(1)
+    viz(8, False)
 
 if __name__=="__main__":
     main()

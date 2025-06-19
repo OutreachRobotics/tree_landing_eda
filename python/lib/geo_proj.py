@@ -354,23 +354,16 @@ def compute_geo_ref_cloud(_input_file: str, _home_file: str, _output_file: str):
 
 
 def main():
+    id = 5
     compute_geo_ref_rgb(
-        os.path.join(config.INPUTS_PATH, str(2), config.IMAGE_RGB_PNG),
-        os.path.join(config.INPUTS_PATH, str(2), config.IMAGE_RGB_POSE_CSV),
-        os.path.join(config.OUTPUTS_PATH, str(2), config.IMAGE_RGB_GEO_REF_TIF)
-        # DronePose(
-        #     45.3785691,
-        #     -71.9445941,
-        #     65,
-        #     5.3
-        # )
+        os.path.join(config.INPUTS_PATH, str(id), config.IMAGE_RGB_PNG),
+        os.path.join(config.INPUTS_PATH, str(id), config.IMAGE_RGB_POSE_CSV),
+        os.path.join(config.OUTPUTS_PATH, str(id), config.IMAGE_RGB_GEO_REF_TIF)
     )
     compute_geo_ref_cloud(
-        os.path.join(config.INPUTS_PATH, str(2), config.RTABMAP_CLOUD_PLY),
-        os.path.join(config.INPUTS_PATH, str(2), config.HOME_CSV),
-        os.path.join(config.OUTPUTS_PATH, str(2), config.RTABMAP_CLOUD_GEO_REF_LAS)
-        # 45.3785691,
-        # -71.9445941
+        os.path.join(config.INPUTS_PATH, str(id), config.RTABMAP_CLOUD_PLY),
+        os.path.join(config.INPUTS_PATH, str(id), config.HOME_CSV),
+        os.path.join(config.OUTPUTS_PATH, str(id), config.RTABMAP_CLOUD_GEO_REF_LAS)
     )
 
 if __name__=="__main__":
