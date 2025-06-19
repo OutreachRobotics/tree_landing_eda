@@ -82,6 +82,14 @@ def run_ardulog(_idx):
     relalt_s = dfs_mockup['XKF1']['PD'][XKF1_idx_list_s].to_list()
     relalt_f = dfs_mockup['XKF1']['PD'][XKF1_idx_list_f].to_list()
 
+    for i in range(len(relalt_s)):
+        # Flip Z
+        relalt_s[i] = -relalt_s[i]
+
+    for i in range(len(relalt_f)):
+        # Flip Z
+        relalt_f[i] = -relalt_f[i]
+
     coords_s = np.array([latitudes_s, longitudes_s, relalt_s]).T
     coords_f = np.array([latitudes_f, longitudes_f, relalt_f]).T
 
