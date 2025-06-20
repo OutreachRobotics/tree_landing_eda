@@ -92,8 +92,9 @@ RUN conda install -n docker -c conda-forge -y \
     python-pdal \
     gdal
 RUN conda install -n docker -c conda-forge --force-reinstall -y libsqlite
-ENV GDAL_DATA=/opt/conda/share/gdal
-ENV PROJ_LIB=/opt/conda/share/proj
+ENV GDAL_DATA=/opt/conda/envs/docker/share/gdal
+ENV PROJ_LIB=/opt/conda/envs/docker/share/proj
+RUN ln -s /opt/conda/envs/docker/lib/libdraco.so.9 /opt/conda/envs/docker/lib/libdraco.so.8
 
 ### RGB post process tools
 WORKDIR $WS
@@ -108,12 +109,6 @@ RUN sudo -E apt-get update -y && \
     sudo -E apt-get install -y \
     python3-tk \
     graphviz
-# RUN conda run -n docker pip install \
-#     pandas \
-#     matplotlib \
-#     -U scikit-learn \
-#     dtreeviz
-
 RUN conda install -n docker -c conda-forge -y \
     pandas \
     matplotlib \
