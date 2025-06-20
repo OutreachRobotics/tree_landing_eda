@@ -50,9 +50,6 @@ def get_local_coords(_idx):
 def save_landing_cloud(_idx):
     local_coords_s, local_coords_f = get_local_coords(_idx)
 
-    # local_coords_s = [[x - 24.0, y + 26.0, z + 3.0] for x, y, z in local_coords_s]
-    # local_coords_f = [[x - 24.0, y + 26.0, z + 3.0] for x, y, z in local_coords_f]
-
     # Create separate point clouds
     success_pcd = o3d.geometry.PointCloud()
     success_pcd.points = o3d.utility.Vector3dVector(local_coords_s)

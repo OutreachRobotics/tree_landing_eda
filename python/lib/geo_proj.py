@@ -1,6 +1,5 @@
 from affine import Affine
 from matplotlib import image
-from pyproj import Geod
 
 import config
 import math
@@ -10,6 +9,7 @@ import os
 import pandas as pd
 import pdal
 import rasterio
+import pyproj
 
 
 class DronePose:
@@ -24,6 +24,15 @@ class DronePose:
 def get_home(_filepath_home):
     home_csv = pd.read_csv(_filepath_home)
     coord_home = home_csv[['latitude', 'longitude', 'altitude']].iloc[0].tolist()
+
+    # Compensates mavros home ellipsoid to geoid
+    # https://github.com/mavlink/mavros/blob/7ee83a833676af38a0cacc6c12733746f84cacca/mavros/src/plugins/home_position.cpp#L165
+    undulation = get_geoid_undulation(coord_home[0], coord_home[1])
+    coord_home[2] += undulation
+
+    # print('coord_home:')
+    # print(coord_home)
+
     return coord_home
 
 def get_global_pose(_filepath_pose):
@@ -33,7 +42,7 @@ def get_global_pose(_filepath_pose):
 
 def get_meters_per_degree_at_coord(_coord_lat, _coord_long):
     # Define the WGS84 ellipsoid
-    geod = Geod(ellps="WGS84")
+    geod = pyproj.Geod(ellps="WGS84")
 
     # Calculate meters per degree of longitude (change in longitude, keep latitude constant)
     _, _, meters_per_degree_lon = geod.inv(_coord_long, _coord_lat, _coord_long + 1, _coord_lat)
@@ -42,6 +51,34 @@ def get_meters_per_degree_at_coord(_coord_lat, _coord_long):
     _, _, meters_per_degree_lat = geod.inv(_coord_long, _coord_lat, _coord_long, _coord_lat + 1)
 
     return meters_per_degree_lat, meters_per_degree_lon
+
+def get_geoid_undulation(latitude: float, longitude: float) -> float:
+    """
+    Calculates the geoid undulation (N) at a specific location.
+    This is the height of the geoid relative to the WGS84 ellipsoid.
+    """
+    # # DEBUGGING:
+    # print(pyproj.datadir.get_data_dir())
+    # tg = pyproj.transformer.TransformerGroup(4326, 5713)
+    # print(tg)
+    # # print(tg.transformers[0].description)
+    # # print(tg.unavailable_operations[0].name)
+    # # print(tg.unavailable_operations[0].grids[0].url)
+
+    # https://epsg.io/
+    # 3855 EGM2008 height
+    # 4326 WGS84 2D (Ellipsoid)
+    # 4979 WGS84 3D (Ellipsoid)
+    # 5713 AMSL Canada (height) (Geoid)
+    # 5714 AMSL World (height) (Geoid)
+    # 5773 EGM96 (height) (Geoid) (Mavros) # https://github.com/mavlink/mavros/blob/7ee83a833676af38a0cacc6c12733746f84cacca/mavros/include/mavros/mavros_uas.hpp#L164
+    # 9705 WGS84 + AMSL World (Geoid)
+    t = pyproj.Transformer.from_crs("epsg:4326", "epsg:5773", always_xy=True)
+    _, _, geoid_undulation = t.transform(longitude, latitude, 0.0)
+
+    print(f'Undulation: {geoid_undulation}')
+    
+    return geoid_undulation
 
 def compute_transform(_lat, _long, _scale_lat, _scale_long, _yaw, _debug=False):
     trans_x = _long
@@ -78,11 +115,11 @@ def compute_transform(_lat, _long, _scale_lat, _scale_long, _yaw, _debug=False):
 
     return transform
 
-def get_local_coord(_org, _coord):
-    meters_per_degree_lat, meters_per_degree_lon = get_meters_per_degree_at_coord(_org[0], _org[1])
+def get_local_coord(_home, _coord):
+    meters_per_degree_lat, meters_per_degree_lon = get_meters_per_degree_at_coord(_home[0], _home[1])
     transform = compute_transform(
-        _org[0],
-        _org[1],
+        _home[0],
+        _home[1],
         1/meters_per_degree_lat,
         1/meters_per_degree_lon,
         0
@@ -102,7 +139,9 @@ def get_local_coord(_org, _coord):
 
     local_x, local_y = transform_inv * (_coord[1], _coord[0])
 
-    return np.array([local_x, local_y, _coord[2]])
+    local_z = _coord[2] - _home[2]
+
+    return np.array([local_x, local_y, local_z])
 
 
 ### RGB GEO REF ###

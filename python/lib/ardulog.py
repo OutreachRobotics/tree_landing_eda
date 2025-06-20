@@ -58,11 +58,11 @@ def find_closest_timestamps_idx(_input_timestamps, _timestamps_list):
 
 def run_ardulog(_idx):
     filepath_mockup = get_log(_idx)
-    type_request = ['RCIN', 'IMU', 'POS', 'BARO', 'MODE', 'MAG', 'XKF1', 'ORGN']
+    type_request = ['RCIN', 'POS']
     output = Ardupilot.parse(filepath_mockup, types=type_request, zero_time_base=True)
     dfs_mockup = output.dfs
 
-    ### Extract landing positions ###
+    ### Extract landing timestamps ###
     THRESHOLD = 1200
     landing_timestamps_s = extract_rising_edges(dfs_mockup['RCIN']['timestamp'], dfs_mockup['RCIN']['C5'], THRESHOLD)
     landing_timestamps_f = extract_rising_edges(dfs_mockup['RCIN']['timestamp'], dfs_mockup['RCIN']['C6'], THRESHOLD)
@@ -70,36 +70,22 @@ def run_ardulog(_idx):
     POS_idx_list_s = find_closest_timestamps_idx(landing_timestamps_s, dfs_mockup['POS']['timestamp'].to_list())
     POS_idx_list_f = find_closest_timestamps_idx(landing_timestamps_f, dfs_mockup['POS']['timestamp'].to_list())
 
+    ### Extract landing positions ###
     latitudes_s = dfs_mockup['POS']['Lat'][POS_idx_list_s].to_list()
     longitudes_s = dfs_mockup['POS']['Lng'][POS_idx_list_s].to_list()
+    alt_s = dfs_mockup['POS']['Alt'][POS_idx_list_s].to_list()
 
     latitudes_f = dfs_mockup['POS']['Lat'][POS_idx_list_f].to_list()
     longitudes_f = dfs_mockup['POS']['Lng'][POS_idx_list_f].to_list()
+    alt_f = dfs_mockup['POS']['Alt'][POS_idx_list_f].to_list()
 
-    XKF1_idx_list_s = find_closest_timestamps_idx(landing_timestamps_s, dfs_mockup['XKF1']['timestamp'].to_list())
-    XKF1_idx_list_f = find_closest_timestamps_idx(landing_timestamps_f, dfs_mockup['XKF1']['timestamp'].to_list())
-
-    relalt_s = dfs_mockup['XKF1']['PD'][XKF1_idx_list_s].to_list()
-    relalt_f = dfs_mockup['XKF1']['PD'][XKF1_idx_list_f].to_list()
-
-    for i in range(len(relalt_s)):
-        # Flip Z
-        relalt_s[i] = -relalt_s[i]
-
-    for i in range(len(relalt_f)):
-        # Flip Z
-        relalt_f[i] = -relalt_f[i]
-
-    coords_s = np.array([latitudes_s, longitudes_s, relalt_s]).T
-    coords_f = np.array([latitudes_f, longitudes_f, relalt_f]).T
+    coords_s = np.array([latitudes_s, longitudes_s, alt_s]).T
+    coords_f = np.array([latitudes_f, longitudes_f, alt_f]).T
 
     return coords_s, coords_f
 
 def run_home(_filepath_home, _coords_s, _coords_f):
     coord_home = get_home(_filepath_home)
-
-    # print('coord_home:')
-    # print(coord_home)
 
     local_coords_s = []
     for coord_s in _coords_s:
