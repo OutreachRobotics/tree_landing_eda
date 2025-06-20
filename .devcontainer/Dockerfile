@@ -47,7 +47,18 @@ RUN /opt/conda/bin/conda init bash && \
 
 ENV PATH=/opt/conda/bin:$PATH
 RUN conda create --name docker python=3.10 && \
-    conda install pip
+    conda install -n docker -c conda-forge -y \
+    pip \
+    numpy=1.23.5 \
+    scipy==1.9.3
+
+
+### PyProj install
+WORKDIR $WS
+RUN conda install -n docker -c conda-forge -y \
+    pyproj \
+    proj \
+    proj-data
 
 ### ArduPilot logs tools
 WORKDIR $WS
@@ -56,13 +67,11 @@ ENV TZ="America/New_York"
 RUN sudo -E apt-get update -y && \
     sudo -E apt-get install -y \
     python3-tk
-RUN conda run -n docker pip install \
-    ardupilot_log_reader \
+RUN conda install -n docker -c conda-forge -y \
     pandas \
     matplotlib \
-    laspy \
-    pyproj \
     affine
+RUN conda run -n docker pip install ardupilot_log_reader
 
 ### PC post process tools
 WORKDIR $WS
@@ -88,9 +97,7 @@ ENV PROJ_LIB=/opt/conda/share/proj
 
 ### RGB post process tools
 WORKDIR $WS
-RUN conda run -n docker pip install \
-    rasterio \
-    pyproj
+RUN conda install -n docker -c conda-forge -y rasterio
 
 ### Decision tree   
 # For matplotlib
@@ -101,8 +108,15 @@ RUN sudo -E apt-get update -y && \
     sudo -E apt-get install -y \
     python3-tk \
     graphviz
-RUN conda run -n docker pip install \
+# RUN conda run -n docker pip install \
+#     pandas \
+#     matplotlib \
+#     -U scikit-learn \
+#     dtreeviz
+
+RUN conda install -n docker -c conda-forge -y \
     pandas \
     matplotlib \
-    -U scikit-learn \
+    scikit-learn
+RUN conda run -n docker pip install \
     dtreeviz
