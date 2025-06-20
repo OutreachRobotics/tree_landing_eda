@@ -1,4 +1,4 @@
-from ardulog import run_ardulog, run_home
+from ardulog import run_ardulog, run_home, run_project_alt
 from geo_proj import compute_geo_ref_rgb, compute_geo_ref_cloud
 
 import config
@@ -45,7 +45,18 @@ def get_local_coords(_idx):
     # print('local_coords_f:')
     # print(local_coords_f)
 
-    return local_coords_s, local_coords_f
+    local_coords_matched_s, local_coords_matched_f = run_project_alt(
+        os.path.join(config.INPUTS_PATH, str(_idx), config.RTABMAP_CLOUD_PLY),
+        local_coords_s,
+        local_coords_f
+    )
+
+    # print('local_coords_matched_s:')
+    # print(local_coords_matched_s)
+    # print('local_coords_matched_f:')
+    # print(local_coords_matched_f)
+
+    return local_coords_matched_s, local_coords_matched_f
 
 def save_landing_cloud(_idx):
     local_coords_s, local_coords_f = get_local_coords(_idx)

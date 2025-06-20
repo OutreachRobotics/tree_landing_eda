@@ -5,7 +5,7 @@ import bisect
 import config
 import numpy as np
 import os
-import pandas as pd
+import open3d as o3d
 
 def get_log(_idx):
     prefix = f'log_'
@@ -97,6 +97,38 @@ def run_home(_filepath_home, _coords_s, _coords_f):
 
     return local_coords_s, local_coords_f
 
+def get_projected_alt(_coords, _points, _radius=0.8):
+    coords = np.array(_coords)
+    points = np.array(_points)
+    highest_z = np.full(len(_coords), np.nan)  # Default to NaN if no points found
+    
+    for i, coord in enumerate(_coords):
+        # Compute squared distances (faster than Euclidean)
+        dx = points[:, 0] - coord[0]
+        dy = points[:, 1] - coord[1]
+        dist_sq = dx**2 + dy**2  # Ignore Z for radius check
+        
+        # Filter points within XY radius
+        mask = dist_sq <= _radius**2
+        candidates_z = points[mask, 2]  # Only extract Z-values
+        
+        if len(candidates_z) > 0:
+            highest_z[i] = np.max(candidates_z)  # Store max Z
+    
+    # Update Z-coordinates (skip if NaN)
+    coords[:, 2] = np.where(np.isnan(highest_z), coords[:, 2], highest_z)
+    
+    return coords.tolist()
+
+def run_project_alt(_filepath_rtabmap, _local_coords_s, _local_coords_f):
+    pcd = o3d.io.read_point_cloud(_filepath_rtabmap)
+    points = np.asarray(pcd.points)
+
+    local_coords_matched_s = get_projected_alt(_local_coords_s, points)
+    local_coords_matched_f = get_projected_alt(_local_coords_f, points)
+
+    return local_coords_matched_s, local_coords_matched_f
+
 def add_ardulog(_df, _idx):
     df = _df.copy()
     coords_s, coords_f = run_ardulog(_idx)
@@ -107,10 +139,16 @@ def add_ardulog(_df, _idx):
         coords_f
     )
 
-    success_values = np.concatenate([np.array([True] * len(local_coords_s)), np.array([False] * len(local_coords_f))])
-    combined_local_coords = local_coords_s + local_coords_f
+    local_coords_matched_s, local_coords_matched_f = run_project_alt(
+        os.path.join(config.INPUTS_PATH, str(_idx), config.RTABMAP_CLOUD_PLY),
+        local_coords_s,
+        local_coords_f
+    )
 
-    df = df.loc[df.index.repeat(len(local_coords_s) + len(local_coords_f))].reset_index(drop=True)
+    success_values = np.concatenate([np.array([True] * len(local_coords_matched_s)), np.array([False] * len(local_coords_matched_f))])
+    combined_local_coords = local_coords_matched_s + local_coords_matched_f
+
+    df = df.loc[df.index.repeat(len(local_coords_matched_s) + len(local_coords_matched_f))].reset_index(drop=True)
     df.insert(0, 'success', success_values)
     df.insert(1, 'landing_x', np.array(combined_local_coords).T[0])
     df.insert(2, 'landing_y', np.array(combined_local_coords).T[1])
