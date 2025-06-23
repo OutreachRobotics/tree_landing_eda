@@ -15,6 +15,7 @@
 #include <pcl/surface/mls.h>
 #include <pcl/visualization/pcl_visualizer.h>
 
+#include "pcl/pcl_tools.hpp"
 
 const int N_NEIGHBORS_SEARCH = 4;
 const float DRONE_RADIUS = 1.5;
@@ -604,8 +605,8 @@ void view(const std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> _clouds){
 int main(int argc, char* argv[]) {
     // std::cout << "Number of args received: " << argc << "\n";
 
-    std::string ply_file_path = "/home/docker/tree_landing_eda/data/inputs/2/rtabmap_cloud.ply";
-    std::string output_csv_path = "/home/docker/tree_landing_eda/data/outputs/2/output_pcl.csv";
+    std::string ply_file_path = "/home/docker/tree_landing_eda/data/inputs/8/rtabmap_cloud.ply";
+    std::string output_csv_path = "/home/docker/tree_landing_eda/data/outputs/8/output_pcl.csv";
     float landing_x = -12.50081099;
     float landing_y = 16.76794873;
     float df_x = -12.0;

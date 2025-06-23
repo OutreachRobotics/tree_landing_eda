@@ -10,6 +10,7 @@
                 "${file}",
                 "-o",
                 "${workspaceFolder}/build/${fileBasenameNoExtension}",
+                "-I${workspaceFolder}/tree_landing_tools", // Path to your custom library
                 "-I/usr/include/eigen3",    // Eigen include path
                 "-I/usr/include/pcl-1.12",  // PCL include path
                 "-I/usr/include/vtk-9.1",   // VTK 9 include path
