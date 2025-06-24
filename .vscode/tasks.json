@@ -8,6 +8,7 @@
                 "-fdiagnostics-color=always",
                 "-g",
                 "${file}",
+                "${workspaceFolder}/tree_landing_tools/pcl/pcl_tools.cpp",
                 "-o",
                 "${workspaceFolder}/build/${fileBasenameNoExtension}",
                 "-I${workspaceFolder}/tree_landing_tools", // Path to your custom library
