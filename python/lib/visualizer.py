@@ -78,8 +78,8 @@ def save_landing_cloud(_idx):
     # Save as PLY file
     o3d.io.write_point_cloud(os.path.join(config.INPUTS_PATH, str(_idx), config.LANDINGS_CLOUD_PLY), combined_pcd, write_ascii=False)
 
-def viz(_idx, _rtabmap_only):
-    if not _rtabmap_only:
+def viz(_idx, _show_all):
+    if _show_all:
         os.makedirs(os.path.join(config.OUTPUTS_PATH, str(_idx)), exist_ok=True)
         save_landing_cloud(_idx)
         compute_geo_ref_rgb(
@@ -104,7 +104,7 @@ def viz(_idx, _rtabmap_only):
 
     add_cloud(vis, _idx)
 
-    if not _rtabmap_only:
+    if _show_all:
         add_home(vis)
         add_landing_cloud(vis, _idx)
 

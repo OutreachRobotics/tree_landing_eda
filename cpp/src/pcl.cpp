@@ -1,7 +1,7 @@
 #include "pcl/pcl_tools.hpp"
 
 const int N_NEIGHBORS_SEARCH = 4;
-const float DRONE_RADIUS = 1.5;
+const float DRONE_RADIUS = 1.6;
 
 int main(int argc, char* argv[])
 {
@@ -9,21 +9,17 @@ int main(int argc, char* argv[])
 
     std::string ply_file_path = "/home/docker/tree_landing_eda/data/inputs/8/rtabmap_cloud.ply";
     std::string output_csv_path = "/home/docker/tree_landing_eda/data/outputs/8/output_pcl.csv";
-    float landing_x = -12.50081099;
-    float landing_y = 16.76794873;
-    float df_x = -12.0;
-    float df_y = 16.0;
+    float landing_x = -25.50081099;
+    float landing_y = -25.76794873;
     bool shouldView = true;
 
     // Check if the correct number of arguments is provided
-    if (argc == 7) {
+    if (argc == 5) {
         // Parse command-line arguments
         ply_file_path = argv[1];
         output_csv_path = argv[2];
         landing_x = std::stof(argv[3]);
         landing_y = std::stof(argv[4]);
-        df_x = std::stof(argv[5]);
-        df_y = std::stof(argv[6]);
         shouldView = false;
     }
     else if (argc != 1) {
@@ -32,34 +28,19 @@ int main(int argc, char* argv[])
     }
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr ogCloud = pcl_tools::loadPly(ply_file_path);
-    // pcl::PointCloud<pcl::PointNormal> normalsCloud = extractNormalsPC(*cloud, pcl::PointXYZRGB(0.0, 0.0, 0.0, 255, 255, 255));
+    // pcl::PointCloud<pcl::PointNormal> normalsCloud = extractNormalsPC(*cloud, pcl::PointXYZRGB(0.0, 0.0, 0.0, 255, 255, 255), N_NEIGHBORS_SEARCH);
 
     pcl::PointXYZRGB min_pt, max_pt;
     pcl::getMinMax3D(*ogCloud, min_pt, max_pt);
     bool isLandingInbound = pcl_tools::checkInboundPoints(min_pt, max_pt, landing_x, landing_y);
-    bool isDFInbound = pcl_tools::checkInboundPoints(min_pt, max_pt, df_x, df_y);
 
-    if(!isLandingInbound || !isDFInbound){
+    if(!isLandingInbound){
         std::cout << "\n\nWARNING: Saving nan csv line because a point is not inbound\n\n";
-        pcl_tools::saveToCSV(
-            output_csv_path,
-            pcl::PrincipalCurvatures(
-                std::numeric_limits<float>::quiet_NaN(),
-                std::numeric_limits<float>::quiet_NaN()
-            ),
-            std::numeric_limits<float>::quiet_NaN(),
-            std::numeric_limits<float>::quiet_NaN(),
-            std::numeric_limits<float>::quiet_NaN(),
-            std::vector<float>({
-                std::numeric_limits<float>::quiet_NaN(),
-                std::numeric_limits<float>::quiet_NaN(),
-                std::numeric_limits<float>::quiet_NaN(),
-                std::numeric_limits<float>::quiet_NaN()
-            }));
+        pcl_tools::saveToCSV(output_csv_path);
         return 0;
     }
 
-    pcl::PointXYZRGB dfCenterPoint(df_x, df_y, 0.0, 255, 255, 255);
+    pcl::PointXYZRGB rgbCenterPoint(-25.0, -25.0, 0.0, 255, 255, 255); //TODO
     pcl::PointXYZRGB landingPoint(landing_x, landing_y, 0.0, 255, 255, 255);
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZRGB>(*ogCloud));
@@ -69,7 +50,7 @@ int main(int argc, char* argv[])
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr smoothCloud(new pcl::PointCloud<pcl::PointXYZRGB>(*cloud));
     pcl_tools::downSamplePC(smoothCloud, 0.5);
     pcl_tools::smoothPC(smoothCloud, 2*DRONE_RADIUS);
-    pcl_tools::projectPoint(smoothCloud, dfCenterPoint);
+    pcl_tools::projectPoint(smoothCloud, rgbCenterPoint);
     pcl_tools::projectPoint(smoothCloud, landingPoint);
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr landingCloud = pcl_tools::extractNeighborPC(ogCloud, landingPoint, DRONE_RADIUS);
 
@@ -80,7 +61,7 @@ int main(int argc, char* argv[])
     Eigen::Vector4f coef = pcl_tools::computePlane(landingCloud);
     float slope = pcl_tools::computePlaneAngle(coef);
     float stdDev = pcl_tools::computeStandardDeviation(landingCloud, coef);
-    std::vector<float> centerDists = pcl_tools::computeDistToCenters(landingPoint, dfCenterPoint, pcCenterPoint);
+    std::vector<std::pair<float, float>> centerDists = pcl_tools::computeDistToPointsOfInterest(landingPoint, std::vector<pcl::PointXYZRGB>({rgbCenterPoint, pcCenterPoint}));
 
     pcl_tools::saveToCSV(output_csv_path, curvatures, density, slope, stdDev, centerDists);
 

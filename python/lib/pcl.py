@@ -30,9 +30,7 @@ def add_pcl(_df, _idx):
             os.path.join(config.INPUTS_PATH, str(_idx), config.RTABMAP_CLOUD_PLY),
             os.path.join(config.OUTPUTS_PATH, str(_idx), config.PCL_CSV),
             str(_df.at[i, 'landing_x']),
-            str(_df.at[i, 'landing_y']),
-            str(_df.at[i, 'center_x']),
-            str(_df.at[i, 'center_y'])
+            str(_df.at[i, 'landing_y'])
         ]
         run_pcl(args)
         pcl_csv = pd.read_csv(os.path.join(config.OUTPUTS_PATH, str(_idx), config.PCL_CSV))
