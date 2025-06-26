@@ -3,6 +3,75 @@
 const int N_NEIGHBORS_SEARCH = 4;
 const float DRONE_RADIUS = 1.5;
 
+void saveToCSV(
+    const std::string& _filename,
+    const pcl::PrincipalCurvatures& _curvatures,
+    const pcl_tools::BoundingBox _clusterBB,
+    const float _density,
+    const float _slope,
+    const float _stdDev,
+    const float _distTop,
+    const std::vector<std::pair<float, float>>& _distsOfInterest)
+{
+    // Open the file for writing
+    std::ofstream file;
+    file.open(_filename);
+
+    if (!file.is_open()) {
+        std::cout << "Error: Could not open file " << _filename << " for writing." << std::endl;
+        return;
+    }
+
+    // Write headers
+    file << "Curvature_PC1,Curvature_PC2,Mean_Curvature,Gaussian_Curvature,"
+         << "BB_Width,BB_Height,BB_Depth,BB_Volume"
+         << "Density,Slope,Standard_Deviation,Distance_Top"
+         << "Distance_RGB_Center_2D,Distance_PC_Center_2D,Distance_RGB_Center_3D,Distance_PC_Center_3D\n";
+
+    // Write data
+    file << _curvatures.pc1 << "," << _curvatures.pc2 << "," << (_curvatures.pc1 + _curvatures.pc2) / 2.0f << "," << _curvatures.pc1 * _curvatures.pc2 << ","
+         << _clusterBB.width << "," << _clusterBB.height << "," << _clusterBB.depth << "," << _clusterBB.volume << ","
+         << _density << ","
+         << _slope << ","
+         << _stdDev << ","
+         << _distTop << ",";
+
+
+    for(auto& distOfInterest : _distsOfInterest)
+    {
+        file << distOfInterest.first << "," << distOfInterest.second;
+    }
+
+    file << "\n";
+
+    // Close the file
+    file.close();
+
+    std::cout << "Data saved to " << _filename << std::endl;
+}
+
+void saveToCSV(const std::string& _filename)
+{
+    saveToCSV(
+        _filename,
+        pcl::PrincipalCurvatures(
+            std::numeric_limits<float>::quiet_NaN(),
+            std::numeric_limits<float>::quiet_NaN()
+        ),
+        pcl_tools::BoundingBox(),
+        std::numeric_limits<float>::quiet_NaN(),
+        std::numeric_limits<float>::quiet_NaN(),
+        std::numeric_limits<float>::quiet_NaN(),
+        std::numeric_limits<float>::quiet_NaN(),
+        std::vector<std::pair<float, float>>({
+            {std::numeric_limits<float>::quiet_NaN(),
+            std::numeric_limits<float>::quiet_NaN()},
+            {std::numeric_limits<float>::quiet_NaN(),
+            std::numeric_limits<float>::quiet_NaN()}
+        })
+    );
+}
+
 int main(int argc, char* argv[])
 {
     // std::cout << "Number of args received: " << argc << "\n";
@@ -30,7 +99,6 @@ int main(int argc, char* argv[])
     }
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr ogCloud = pcl_tools::loadPly(ply_file_path);
-    // pcl::PointCloud<pcl::PointNormal> normalsCloud = extractNormalsPC(*cloud, pcl::PointXYZRGB(0.0, 0.0, 0.0, 255, 255, 255), N_NEIGHBORS_SEARCH);
 
     pcl::PointXYZRGB min_pt, max_pt;
     pcl::getMinMax3D(*ogCloud, min_pt, max_pt);
@@ -38,7 +106,7 @@ int main(int argc, char* argv[])
 
     if(!isLandingInbound){
         std::cout << "\n\nWARNING: Saving nan csv line because a point is not inbound\n\n";
-        pcl_tools::saveToCSV(output_csv_path);
+        saveToCSV(output_csv_path);
         return 0;
     }
 
@@ -52,6 +120,35 @@ int main(int argc, char* argv[])
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr smoothCloud(new pcl::PointCloud<pcl::PointXYZRGB>(*cloud));
     pcl_tools::downSamplePC(smoothCloud, DRONE_RADIUS/3.0);
+
+    pcl::PointXYZRGB normalsCentroid{
+        clusterBB.centroid[0],
+        clusterBB.centroid[1],
+        999999
+    };
+    pcl::PointCloud<pcl::PointNormal>::Ptr normalsCloud = pcl_tools::extractNormalsPC(
+        smoothCloud,
+        normalsCentroid,
+        N_NEIGHBORS_SEARCH
+    );
+    pcl::PointIndices boundaryIdx = pcl_tools::findBoundary(
+        smoothCloud,
+        normalsCloud,
+        N_NEIGHBORS_SEARCH
+    );
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr boundary(new pcl::PointCloud<pcl::PointXYZRGB>);
+    pcl_tools::extractPoints(*cloud, *boundary, boundaryIdx, false);
+    // pcl::PointCloud<pcl::PointXYZRGB>::Ptr boundary = pcl_tools::extractBoundary(
+    //     smoothCloud,
+    //     normalsCloud,
+    //     N_NEIGHBORS_SEARCH
+    // );
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr boundaryRad = pcl_tools::extractRadiusBoundary(
+        smoothCloud,
+        boundaryIdx,
+        DRONE_RADIUS
+    );
+
     pcl_tools::smoothPC(smoothCloud, DRONE_RADIUS/2.0);
     pcl_tools::projectPoint(smoothCloud, rgbCenterPoint);
     pcl_tools::projectPoint(smoothCloud, landingPoint);
@@ -76,14 +173,19 @@ int main(int argc, char* argv[])
         })
     );
 
-    pcl_tools::saveToCSV(output_csv_path, curvatures, clusterBB, density, slope, stdDev, distTop, distsOfInterest);
+    saveToCSV(output_csv_path, curvatures, clusterBB, density, slope, stdDev, distTop, distsOfInterest);
 
     if(shouldView){
         std::cout << "Viewing" << std::endl;
+        // pcl_tools::colorSegmentedPoints(cloud, pcl::RGB(255,255,255));
+        // pcl_tools::colorSegmentedPoints(smoothCloud, pcl::RGB(0,0,255));
+        // pcl_tools::colorSegmentedPoints(landingCloud, pcl::RGB(255,0,0));
+        // pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{ogCloud, smoothCloud, landingCloud});
+
         pcl_tools::colorSegmentedPoints(cloud, pcl::RGB(255,255,255));
-        pcl_tools::colorSegmentedPoints(smoothCloud, pcl::RGB(0,0,255));
-        pcl_tools::colorSegmentedPoints(landingCloud, pcl::RGB(255,0,0));
-        pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{ogCloud, smoothCloud, landingCloud});
+        pcl_tools::colorSegmentedPoints(boundary, pcl::RGB(0,0,255));
+        pcl_tools::colorSegmentedPoints(boundaryRad, pcl::RGB(255,0,0));
+        pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{ogCloud, boundary, boundaryRad});
     }
 
     return 0;
