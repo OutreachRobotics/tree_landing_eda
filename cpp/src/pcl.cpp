@@ -1,6 +1,6 @@
 #include "pcl/pcl_tools.hpp"
 
-const int N_NEIGHBORS_SEARCH = 4;
+const int N_NEIGHBORS_SEARCH = 20;
 const float DRONE_RADIUS = 1.5;
 
 void saveToCSV(
@@ -113,52 +113,36 @@ int main(int argc, char* argv[])
     pcl::PointXYZRGB rgbCenterPoint(-25.0, -25.0, 0.0, 255, 255, 255); //TODO
     pcl::PointXYZRGB landingPoint(landing_x, landing_y, 0.0, 255, 255, 255);
 
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZRGB>(*ogCloud));
-    pcl_tools::downSamplePC(cloud, DRONE_RADIUS/10.0);
-    pcl_tools::extractBiggestCluster(cloud, DRONE_RADIUS/3.0);
-    pcl_tools::BoundingBox clusterBB = pcl_tools::getBB(cloud);
+    const float downsample = DRONE_RADIUS/5.0;
+    const float maxGap = DRONE_RADIUS/3.0;
+    const float surfaceDownsample = DRONE_RADIUS/3.0;
 
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr smoothCloud(new pcl::PointCloud<pcl::PointXYZRGB>(*cloud));
-    pcl_tools::downSamplePC(smoothCloud, DRONE_RADIUS/3.0);
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr clusterCloud(new pcl::PointCloud<pcl::PointXYZRGB>(*ogCloud));
+    pcl_tools::downSamplePC(clusterCloud, downsample);
+    pcl_tools::extractBiggestCluster(clusterCloud, maxGap);
+    pcl_tools::BoundingBox clusterBB = pcl_tools::getBB(clusterCloud);
 
-    pcl::PointXYZRGB normalsCentroid{
-        clusterBB.centroid[0],
-        clusterBB.centroid[1],
-        999999
-    };
-    pcl::PointCloud<pcl::PointNormal>::Ptr normalsCloud = pcl_tools::extractNormalsPC(
-        smoothCloud,
-        normalsCentroid,
-        N_NEIGHBORS_SEARCH
-    );
-    pcl::PointIndices boundaryIdx = pcl_tools::findBoundary(
-        smoothCloud,
-        normalsCloud,
-        N_NEIGHBORS_SEARCH
-    );
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr boundary(new pcl::PointCloud<pcl::PointXYZRGB>);
-    pcl_tools::extractPoints(*cloud, *boundary, boundaryIdx, false);
-    // pcl::PointCloud<pcl::PointXYZRGB>::Ptr boundary = pcl_tools::extractBoundary(
-    //     smoothCloud,
-    //     normalsCloud,
-    //     N_NEIGHBORS_SEARCH
-    // );
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr boundaryRad = pcl_tools::extractRadiusBoundary(
-        smoothCloud,
-        boundaryIdx,
-        DRONE_RADIUS
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr surfaceCloud(new pcl::PointCloud<pcl::PointXYZRGB>(*clusterCloud));
+    pcl_tools::extractSurface(surfaceCloud, surfaceDownsample);
+
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr segCloud = pcl_tools::computeSegmentation(
+        surfaceCloud,
+        4*DRONE_RADIUS/surfaceDownsample,
+        25.0,
+        0.03
     );
 
-    pcl_tools::smoothPC(smoothCloud, DRONE_RADIUS/2.0);
-    pcl_tools::projectPoint(smoothCloud, rgbCenterPoint);
-    pcl_tools::projectPoint(smoothCloud, landingPoint);
+    pcl_tools::smoothPC(surfaceCloud, DRONE_RADIUS/2.0);
+
+    pcl_tools::projectPoint(surfaceCloud, rgbCenterPoint);
+    pcl_tools::projectPoint(surfaceCloud, landingPoint);
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr landingCloud = pcl_tools::extractNeighborPC(ogCloud, landingPoint, 2*DRONE_RADIUS);
 
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr extremeCloud = pcl_tools::extractLocalExtremums(smoothCloud, 2*DRONE_RADIUS);
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr extremeCloud = pcl_tools::extractLocalExtremums(surfaceCloud, 2*DRONE_RADIUS);
 
-    pcl::PointXYZRGB highestPoint = pcl_tools::getHighestPoint(smoothCloud);
+    pcl::PointXYZRGB highestPoint = pcl_tools::getHighestPoint(surfaceCloud);
 
-    pcl::PrincipalCurvatures curvatures = pcl_tools::computeCurvature(smoothCloud, landingPoint, 2*DRONE_RADIUS);
+    pcl::PrincipalCurvatures curvatures = pcl_tools::computeCurvature(surfaceCloud, landingPoint, 2*DRONE_RADIUS);
     float density = pcl_tools::computeDensity(landingCloud, DRONE_RADIUS);
     Eigen::Vector4f coef = pcl_tools::computePlane(landingCloud);
     float slope = pcl_tools::computePlaneAngle(coef);
@@ -177,15 +161,11 @@ int main(int argc, char* argv[])
 
     if(shouldView){
         std::cout << "Viewing" << std::endl;
-        // pcl_tools::colorSegmentedPoints(cloud, pcl::RGB(255,255,255));
-        // pcl_tools::colorSegmentedPoints(smoothCloud, pcl::RGB(0,0,255));
-        // pcl_tools::colorSegmentedPoints(landingCloud, pcl::RGB(255,0,0));
-        // pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{ogCloud, smoothCloud, landingCloud});
-
-        pcl_tools::colorSegmentedPoints(cloud, pcl::RGB(255,255,255));
-        pcl_tools::colorSegmentedPoints(boundary, pcl::RGB(0,0,255));
-        pcl_tools::colorSegmentedPoints(boundaryRad, pcl::RGB(255,0,0));
-        pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{ogCloud, boundary, boundaryRad});
+        pcl_tools::colorSegmentedPoints(ogCloud, pcl::RGB(255,255,255));
+        pcl_tools::colorSegmentedPoints(clusterCloud, pcl::RGB(0,255,0));
+        pcl_tools::colorSegmentedPoints(surfaceCloud, pcl::RGB(255,0,0));
+        // pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{clusterCloud, surfaceCloud});
+        pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{segCloud});
     }
 
     return 0;
