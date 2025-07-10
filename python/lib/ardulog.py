@@ -1,5 +1,5 @@
 from ardupilot_log_reader.reader import Ardupilot
-from geo_proj import get_local_coord, get_home
+from geo_proj import get_local_coord, get_home, get_origin
 
 import bisect
 import config
@@ -97,6 +97,19 @@ def run_home(_filepath_home, _coords_s, _coords_f):
 
     return local_coords_s, local_coords_f
 
+def run_origin(_filepath_origin, _coords_s, _coords_f):
+    coord_origin = get_origin(_filepath_origin)
+
+    local_coords_s = []
+    for coord_s in _coords_s:
+        local_coords_s.append(get_local_coord(coord_origin, coord_s))
+
+    local_coords_f = []
+    for coord_f in _coords_f:
+        local_coords_f.append(get_local_coord(coord_origin, coord_f))
+
+    return local_coords_s, local_coords_f
+
 def get_projected_alt(_coords, _points, _radius=0.8):
     coords = np.array(_coords)
     points = np.array(_points)
@@ -133,17 +146,24 @@ def add_ardulog(_df, _idx):
     df = _df.copy()
     coords_s, coords_f = run_ardulog(_idx)
 
-    local_coords_s, local_coords_f = run_home(
-        os.path.join(config.INPUTS_PATH, str(_idx), config.HOME_CSV),
+    # local_coords_s, local_coords_f = run_home(
+    #     os.path.join(config.INPUTS_PATH, str(_idx), config.HOME_CSV),
+    #     coords_s,
+    #     coords_f
+    # )
+    local_coords_s, local_coords_f = run_origin(
+        os.path.join(config.INPUTS_PATH, str(_idx), config.ORIGIN_CSV),
         coords_s,
         coords_f
     )
 
-    local_coords_matched_s, local_coords_matched_f = run_project_alt(
-        os.path.join(config.INPUTS_PATH, str(_idx), config.RTABMAP_CLOUD_PLY),
-        local_coords_s,
-        local_coords_f
-    )
+    # local_coords_matched_s, local_coords_matched_f = run_project_alt(
+    #     os.path.join(config.INPUTS_PATH, str(_idx), config.RTABMAP_CLOUD_PLY),
+    #     local_coords_s,
+    #     local_coords_f
+    # )
+    local_coords_matched_s = local_coords_s
+    local_coords_matched_f = local_coords_f
 
     success_values = np.concatenate([np.array([True] * len(local_coords_matched_s)), np.array([False] * len(local_coords_matched_f))])
     combined_local_coords = local_coords_matched_s + local_coords_matched_f

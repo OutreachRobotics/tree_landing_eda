@@ -6,6 +6,7 @@ INPUTS_PATH = os.path.join(WS_PATH, 'data', 'inputs')
 OUTPUTS_PATH = os.path.join(WS_PATH, 'data', 'outputs')
 
 HOME_CSV = 'home.csv'
+ORIGIN_CSV = 'origin.csv'
 IMAGE_RGB_PNG = os.path.join('img_input', 'img_input.png')
 IMAGE_RGB_POSE_CSV = os.path.join('img_input', 'img_input_global_pose.csv')
 IMAGE_RGB_GEO_REF_TIF = 'img_input_geo_ref.tif'

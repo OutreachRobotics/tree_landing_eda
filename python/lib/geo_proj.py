@@ -35,6 +35,15 @@ def get_home(_filepath_home):
 
     return coord_home
 
+def get_origin(_filepath_origin):
+    origin_csv = pd.read_csv(_filepath_origin)
+    coord_origin = origin_csv[['latitude', 'longitude', 'altitude']].iloc[0].tolist()
+
+    print('coord_origin:')
+    print(coord_origin)
+
+    return coord_origin
+
 def get_global_pose(_filepath_pose):
     global_pose_csv = pd.read_csv(_filepath_pose)
     global_pose = global_pose_csv[['latitude', 'longitude', 'rel_alt', 'yaw']].iloc[0].tolist()
@@ -115,11 +124,11 @@ def compute_transform(_lat, _long, _scale_lat, _scale_long, _yaw, _debug=False):
 
     return transform
 
-def get_local_coord(_home, _coord):
-    meters_per_degree_lat, meters_per_degree_lon = get_meters_per_degree_at_coord(_home[0], _home[1])
+def get_local_coord(_origin, _coord):
+    meters_per_degree_lat, meters_per_degree_lon = get_meters_per_degree_at_coord(_origin[0], _origin[1])
     transform = compute_transform(
-        _home[0],
-        _home[1],
+        _origin[0],
+        _origin[1],
         1/meters_per_degree_lat,
         1/meters_per_degree_lon,
         0
@@ -139,7 +148,7 @@ def get_local_coord(_home, _coord):
 
     local_x, local_y = transform_inv * (_coord[1], _coord[0])
 
-    local_z = _coord[2] - _home[2]
+    local_z = _coord[2] - _origin[2]
 
     return np.array([local_x, local_y, local_z])
 
@@ -362,12 +371,16 @@ def compute_pdal(_transform, _input_file, _output_file):
     # Execute the pipeline
     pipeline.execute()
 
-def compute_geo_ref_cloud(_input_file: str, _home_file: str, _output_file: str):
-    coord_home = get_home(_home_file)
-    home_lat = coord_home[0]
-    home_long = coord_home[1]
+def compute_geo_ref_cloud(_input_file: str, _origin_file: str, _output_file: str):
+    # coord_home = get_home(_home_file)
+    # home_lat = coord_home[0]
+    # home_long = coord_home[1]
 
-    meters_per_degree_lat, meters_per_degree_lon = get_meters_per_degree_at_coord(home_lat, home_long)
+    coord_origin = get_origin(_origin_file)
+    origin_lat = coord_origin[0]
+    origin_long = coord_origin[1]
+
+    meters_per_degree_lat, meters_per_degree_lon = get_meters_per_degree_at_coord(origin_lat, origin_long)
 
     # Load the point cloud from the PLY file
     point_cloud = o3d.io.read_point_cloud(_input_file)
@@ -382,8 +395,8 @@ def compute_geo_ref_cloud(_input_file: str, _home_file: str, _output_file: str):
     print(f"1/meters_per_degree_lat: {1/meters_per_degree_lat:.10f}")
 
     transform = compute_transform(
-        home_lat,
-        home_long,
+        origin_lat,
+        origin_long,
         1/meters_per_degree_lat,
         1/meters_per_degree_lon,
         0 # Local frame is usually already aligned with global frame
@@ -401,7 +414,8 @@ def main():
     )
     compute_geo_ref_cloud(
         os.path.join(config.INPUTS_PATH, str(id), config.RTABMAP_CLOUD_PLY),
-        os.path.join(config.INPUTS_PATH, str(id), config.HOME_CSV),
+        # os.path.join(config.INPUTS_PATH, str(id), config.HOME_CSV),
+        os.path.join(config.INPUTS_PATH, str(id), config.ORIGIN_CSV),
         os.path.join(config.OUTPUTS_PATH, str(id), config.RTABMAP_CLOUD_GEO_REF_LAS)
     )
 

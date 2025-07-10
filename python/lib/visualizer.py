@@ -1,4 +1,4 @@
-from ardulog import run_ardulog, run_home, run_project_alt
+from ardulog import run_ardulog, run_home, run_project_alt, run_origin
 from geo_proj import compute_geo_ref_rgb, compute_geo_ref_cloud
 
 import config
@@ -29,13 +29,18 @@ def add_landing_cloud(_vis, _idx):
 def get_local_coords(_idx):
     coords_s, coords_f = run_ardulog(_idx)
 
-    # print('coords_s:')
-    # print(coords_s)
-    # print('coords_f:')
-    # print(coords_f)
+    print('coords_s:')
+    print(coords_s)
+    print('coords_f:')
+    print(coords_f)
 
-    local_coords_s, local_coords_f = run_home(
-        os.path.join(config.INPUTS_PATH, str(_idx), config.HOME_CSV),
+    # local_coords_s, local_coords_f = run_home(
+    #     os.path.join(config.INPUTS_PATH, str(_idx), config.HOME_CSV),
+    #     coords_s,
+    #     coords_f
+    # )
+    local_coords_s, local_coords_f = run_origin(
+        os.path.join(config.INPUTS_PATH, str(_idx), config.ORIGIN_CSV),
         coords_s,
         coords_f
     )
@@ -45,11 +50,13 @@ def get_local_coords(_idx):
     # print('local_coords_f:')
     # print(local_coords_f)
 
-    local_coords_matched_s, local_coords_matched_f = run_project_alt(
-        os.path.join(config.INPUTS_PATH, str(_idx), config.RTABMAP_CLOUD_PLY),
-        local_coords_s,
-        local_coords_f
-    )
+    # local_coords_matched_s, local_coords_matched_f = run_project_alt(
+    #     os.path.join(config.INPUTS_PATH, str(_idx), config.RTABMAP_CLOUD_PLY),
+    #     local_coords_s,
+    #     local_coords_f
+    # )
+    local_coords_matched_s = local_coords_s
+    local_coords_matched_f = local_coords_f
 
     # print('local_coords_matched_s:')
     # print(local_coords_matched_s)
@@ -89,12 +96,14 @@ def viz(_idx, _show_all):
         )
         compute_geo_ref_cloud(
             os.path.join(config.INPUTS_PATH, str(_idx), config.RTABMAP_CLOUD_PLY),
-            os.path.join(config.INPUTS_PATH, str(_idx), config.HOME_CSV),
+            # os.path.join(config.INPUTS_PATH, str(_idx), config.HOME_CSV),
+            os.path.join(config.INPUTS_PATH, str(_idx), config.ORIGIN_CSV),
             os.path.join(config.OUTPUTS_PATH, str(_idx), config.RTABMAP_CLOUD_GEO_REF_LAS)
         )
         compute_geo_ref_cloud(
             os.path.join(config.INPUTS_PATH, str(_idx), config.LANDINGS_CLOUD_PLY),
-            os.path.join(config.INPUTS_PATH, str(_idx), config.HOME_CSV),
+            # os.path.join(config.INPUTS_PATH, str(_idx), config.HOME_CSV),
+            os.path.join(config.INPUTS_PATH, str(_idx), config.ORIGIN_CSV),
             os.path.join(config.OUTPUTS_PATH, str(_idx), config.LANDINGS_CLOUD_GEO_REF_LAS)
         )
 
@@ -114,7 +123,7 @@ def viz(_idx, _show_all):
 
 
 def main():
-    viz(8, False)
+    viz(13, True)
 
 if __name__=="__main__":
     main()
