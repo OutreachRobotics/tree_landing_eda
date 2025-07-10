@@ -113,9 +113,9 @@ int main(int argc, char* argv[])
     pcl::PointXYZRGB rgbCenterPoint(-25.0, -25.0, 0.0, 255, 255, 255); //TODO
     pcl::PointXYZRGB landingPoint(landing_x, landing_y, 0.0, 255, 255, 255);
 
-    const float downsample = DRONE_RADIUS/5.0;
+    const float downsample = DRONE_RADIUS/10.0;
     const float maxGap = DRONE_RADIUS/3.0;
-    const float surfaceDownsample = DRONE_RADIUS/3.0;
+    const float surfaceDownsample = DRONE_RADIUS/10.0;
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr clusterCloud(new pcl::PointCloud<pcl::PointXYZRGB>(*ogCloud));
     pcl_tools::downSamplePC(clusterCloud, downsample);
@@ -124,6 +124,10 @@ int main(int argc, char* argv[])
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr surfaceCloud(new pcl::PointCloud<pcl::PointXYZRGB>(*clusterCloud));
     pcl_tools::extractSurface(surfaceCloud, surfaceDownsample);
+
+    cv::Mat depthMap = pcl_tools::computeDepthMap(surfaceCloud, surfaceDownsample);
+    pcl_tools::segmentWatershed(depthMap, 0.2);
+    // pcl_tools::saveDepthMapAsTiff(depthMap, "/home/docker/tree_landing_eda/data/outputs/9/test_filtered_3.tiff");
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr segCloud = pcl_tools::computeSegmentation(
         surfaceCloud,

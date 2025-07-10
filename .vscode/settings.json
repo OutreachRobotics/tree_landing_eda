@@ -69,7 +69,14 @@
         "variant": "cpp",
         "core": "cpp",
         "unordered_set": "cpp",
-        "numericaldiff": "cpp"
+        "numericaldiff": "cpp",
+        "csignal": "cpp",
+        "any": "cpp",
+        "codecvt": "cpp",
+        "future": "cpp",
+        "shared_mutex": "cpp",
+        "span": "cpp",
+        "valarray": "cpp"
     },
     "python.defaultInterpreterPath": "/opt/conda/envs/docker/bin/python3"
 }

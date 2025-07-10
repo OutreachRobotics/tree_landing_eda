@@ -15,6 +15,7 @@
                 "-I/usr/include/eigen3",    // Eigen include path
                 "-I/usr/include/pcl-1.12",  // PCL include path
                 "-I/usr/include/vtk-9.1",   // VTK 9 include path
+                "-I/usr/include/opencv4",   // OpenCV include path
                 "-Wl,--copy-dt-needed-entries",
                 "-lpcl_io",
                 "-lpcl_common",
@@ -24,7 +25,10 @@
                 "-lpcl_surface",
                 "-lpcl_features",
                 "-lpcl_visualization",
-                "-lvtkCommonCore-9.1"
+                "-lvtkCommonCore-9.1",
+                "-lopencv_core",
+                "-lopencv_imgcodecs",
+                "-lopencv_highgui"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
