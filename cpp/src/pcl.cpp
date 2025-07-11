@@ -125,16 +125,14 @@ int main(int argc, char* argv[])
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr surfaceCloud(new pcl::PointCloud<pcl::PointXYZRGB>(*clusterCloud));
     pcl_tools::extractSurface(surfaceCloud, surfaceDownsample);
 
-    cv::Mat depthMap = pcl_tools::computeDepthMap(surfaceCloud, surfaceDownsample);
-    pcl_tools::segmentWatershed(depthMap, 0.2);
-    // pcl_tools::saveDepthMapAsTiff(depthMap, "/home/docker/tree_landing_eda/data/outputs/9/test_filtered_3.tiff");
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr segCloud = pcl_tools::segmentWatershed(surfaceCloud, surfaceDownsample, 3, 0.7);
 
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr segCloud = pcl_tools::computeSegmentation(
-        surfaceCloud,
-        4*DRONE_RADIUS/surfaceDownsample,
-        25.0,
-        0.03
-    );
+    // pcl::PointCloud<pcl::PointXYZRGB>::Ptr segCloud = pcl_tools::computeSegmentation(
+    //     surfaceCloud,
+    //     4*DRONE_RADIUS/surfaceDownsample,
+    //     25.0,
+    //     0.03
+    // );
 
     pcl_tools::smoothPC(surfaceCloud, DRONE_RADIUS/2.0);
 
@@ -165,9 +163,9 @@ int main(int argc, char* argv[])
 
     if(shouldView){
         std::cout << "Viewing" << std::endl;
-        pcl_tools::colorSegmentedPoints(ogCloud, pcl::RGB(255,255,255));
-        pcl_tools::colorSegmentedPoints(clusterCloud, pcl::RGB(0,255,0));
-        pcl_tools::colorSegmentedPoints(surfaceCloud, pcl::RGB(255,0,0));
+        // pcl_tools::colorSegmentedPoints(ogCloud, pcl::RGB(255,255,255));
+        // pcl_tools::colorSegmentedPoints(clusterCloud, pcl::RGB(0,255,0));
+        // pcl_tools::colorSegmentedPoints(surfaceCloud, pcl::RGB(255,0,0));
         // pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{clusterCloud, surfaceCloud});
         pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{segCloud});
     }
