@@ -115,7 +115,8 @@ int main(int argc, char* argv[])
 
     const float downsample = DRONE_RADIUS/10.0;
     const float maxGap = DRONE_RADIUS/3.0;
-    const float surfaceDownsample = DRONE_RADIUS/10.0;
+    const float surfaceDownsample = downsample;
+    const float wshedDownsample = 2.0*surfaceDownsample;
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr clusterCloud(new pcl::PointCloud<pcl::PointXYZRGB>(*ogCloud));
     pcl_tools::downSamplePC(clusterCloud, downsample);
@@ -124,17 +125,9 @@ int main(int argc, char* argv[])
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr surfaceCloud(new pcl::PointCloud<pcl::PointXYZRGB>(*clusterCloud));
     pcl_tools::extractSurface(surfaceCloud, surfaceDownsample);
+    pcl_tools::smoothPC(surfaceCloud, DRONE_RADIUS);
 
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr segCloud = pcl_tools::segmentWatershed(surfaceCloud, surfaceDownsample, 3, 0.7);
-
-    // pcl::PointCloud<pcl::PointXYZRGB>::Ptr segCloud = pcl_tools::computeSegmentation(
-    //     surfaceCloud,
-    //     4*DRONE_RADIUS/surfaceDownsample,
-    //     25.0,
-    //     0.03
-    // );
-
-    pcl_tools::smoothPC(surfaceCloud, DRONE_RADIUS/2.0);
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr segCloud = pcl_tools::segmentWatershed(surfaceCloud, wshedDownsample, DRONE_RADIUS, 0.5, 3);
 
     pcl_tools::projectPoint(surfaceCloud, rgbCenterPoint);
     pcl_tools::projectPoint(surfaceCloud, landingPoint);
@@ -163,11 +156,10 @@ int main(int argc, char* argv[])
 
     if(shouldView){
         std::cout << "Viewing" << std::endl;
-        // pcl_tools::colorSegmentedPoints(ogCloud, pcl::RGB(255,255,255));
-        // pcl_tools::colorSegmentedPoints(clusterCloud, pcl::RGB(0,255,0));
-        // pcl_tools::colorSegmentedPoints(surfaceCloud, pcl::RGB(255,0,0));
-        // pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{clusterCloud, surfaceCloud});
-        pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{segCloud});
+        pcl_tools::colorSegmentedPoints(ogCloud, pcl::RGB(255,255,255));
+        pcl_tools::colorSegmentedPoints(surfaceCloud, pcl::RGB(255,0,0));
+        pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{ogCloud, surfaceCloud});
+        // pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{segCloud});
     }
 
     return 0;
