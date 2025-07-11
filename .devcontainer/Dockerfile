@@ -18,24 +18,25 @@ RUN apt-get update && \
 
 # Switch from root to user
 USER $USERNAME
+ARG WS=/home/$USERNAME/tree_landing_eda
 
-### Install Python essentials
-RUN sudo apt-get update && \
-    sudo apt-get install -y \
+### Install apt packages
+ARG DEBIAN_FRONTEND="noninteractive"
+ENV TZ="America/New_York"
+RUN sudo -E apt-get update && \
+    sudo -E apt-get upgrade -y && \
+    sudo -E apt-get install -y --no-install-recommends \
     git \
-    python3
-
-### Install C++ essentials
-RUN sudo apt-get update && \
-    sudo apt-get install -y \
+    python3 \
     build-essential \
-    gdb
+    gdb \
+    wget \
+    libpcl-dev \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    libopencv-dev
 
 ### Install Conda
-RUN sudo apt-get update && \
-    sudo apt-get install -y \
-    wget
-
 RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O /tmp/miniconda.sh && \
     sudo /bin/bash /tmp/miniconda.sh -b -p /opt/conda && \
     rm /tmp/miniconda.sh && \
@@ -62,8 +63,6 @@ RUN conda install -n docker -c conda-forge -y \
 
 ### ArduPilot logs tools
 WORKDIR $WS
-ARG DEBIAN_FRONTEND="noninteractive"
-ENV TZ="America/New_York"
 RUN sudo -E apt-get update -y && \
     sudo -E apt-get install -y \
     python3-tk
@@ -75,12 +74,6 @@ RUN conda run -n docker pip install ardupilot_log_reader
 
 ### PC post process tools
 WORKDIR $WS
-RUN sudo apt-get update && \
-    sudo apt install -y \
-    libpcl-dev
-RUN sudo apt-get update && sudo apt-get install -y \
-    libgl1-mesa-glx \
-    libglib2.0-0
 RUN conda install -n docker -c conda-forge libstdcxx-ng -y
 RUN conda run -n docker pip install open3d-cpu
 # https://github.com/isl-org/Open3D/issues/6872#issuecomment-2615797521
