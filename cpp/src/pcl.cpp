@@ -3,10 +3,18 @@
 const int N_NEIGHBORS_SEARCH = 20;
 const float DRONE_RADIUS = 1.5;
 
+struct InputValues {
+    std::string ply_file_path;
+    std::string output_csv_path;
+    float landing_x;
+    float landing_y;
+    bool should_view;
+};
+
 void saveToCSV(
     const std::string& _filename,
     const pcl::PrincipalCurvatures& _curvatures,
-    const pcl_tools::BoundingBox _clusterBB,
+    const pcl_tools::BoundingBox _treeBB,
     const float _density,
     const float _slope,
     const float _stdDev,
@@ -24,13 +32,13 @@ void saveToCSV(
 
     // Write headers
     file << "Curvature_PC1,Curvature_PC2,Mean_Curvature,Gaussian_Curvature,"
-         << "BB_Width,BB_Height,BB_Depth,BB_Volume"
+         << "Tree_Major_Diameter,Tree_Minor_Diameter"
          << "Density,Slope,Standard_Deviation,Distance_Top"
          << "Distance_RGB_Center_2D,Distance_PC_Center_2D,Distance_RGB_Center_3D,Distance_PC_Center_3D\n";
 
     // Write data
     file << _curvatures.pc1 << "," << _curvatures.pc2 << "," << (_curvatures.pc1 + _curvatures.pc2) / 2.0f << "," << _curvatures.pc1 * _curvatures.pc2 << ","
-         << _clusterBB.width << "," << _clusterBB.height << "," << _clusterBB.depth << "," << _clusterBB.volume << ","
+         << std::max(_treeBB.width, _treeBB.height) << "," << std::min(_treeBB.width, _treeBB.height) << ","
          << _density << ","
          << _slope << ","
          << _stdDev << ","
@@ -72,93 +80,117 @@ void saveToCSV(const std::string& _filename)
     );
 }
 
+void computeFeatures(
+    const InputValues& _inputValues,
+    const pcl::PointXYZRGB& _landingPoint,
+    const pcl::PointCloud<pcl::PointXYZRGB>::Ptr _treeCloud,
+    const pcl::PointCloud<pcl::PointXYZRGB>::Ptr _landingCloud,
+    const pcl::PointCloud<pcl::PointXYZRGB>::Ptr _landingSurfaceCloud)
+{
+    pcl_tools::BoundingBox treeBB = pcl_tools::getBB(_treeCloud);
+
+    pcl::PointXYZRGB treeCenterPoint(treeBB.centroid[0], treeBB.centroid[1], 0.0, 255, 255, 255);
+    pcl_tools::projectPoint(_treeCloud, treeCenterPoint);
+
+    pcl::PointXYZRGB highestPoint = pcl_tools::getHighestPoint(_treeCloud);
+
+    pcl::PrincipalCurvatures curvatures = pcl_tools::computeCurvature(_treeCloud, _landingPoint, 2*DRONE_RADIUS);
+    float density = pcl_tools::computeDensity(_landingCloud, DRONE_RADIUS);
+    Eigen::Vector4f coef = pcl_tools::computePlane(_landingSurfaceCloud);
+    float slope = pcl_tools::computePlaneAngle(coef);
+    float stdDev = pcl_tools::computeStandardDeviation(_landingSurfaceCloud, coef);
+    float distTop = highestPoint.z - _landingPoint.z;
+
+    std::vector<std::pair<float, float>> distsOfInterest = pcl_tools::computeDistToPointsOfInterest(
+        _landingPoint, 
+        std::vector<pcl::PointXYZRGB>({
+            treeCenterPoint,
+            highestPoint
+        })
+    );
+
+    saveToCSV(_inputValues.output_csv_path, curvatures, treeBB, density, slope, stdDev, distTop, distsOfInterest);
+}
+
 int main(int argc, char* argv[])
 {
     // std::cout << "Number of args received: " << argc << "\n";
+    InputValues inputValues;
 
-    std::string ply_file_path = "/home/docker/tree_landing_eda/data/inputs/9/rtabmap_cloud.ply";
-    std::string output_csv_path = "/home/docker/tree_landing_eda/data/outputs/9/output_pcl.csv";
-    float landing_x = -50.50081099; // /9
-    float landing_y = -70.76794873; // /9
-    // float landing_x = 1.50081099; // /10
-    // float landing_y = -105.76794873; // /10
-    bool shouldView = true;
+    inputValues.ply_file_path = "/home/docker/tree_landing_eda/data/inputs/9/rtabmap_cloud.ply";
+    inputValues.output_csv_path = "/home/docker/tree_landing_eda/data/outputs/9/output_pcl.csv";
+    inputValues.landing_x = -50.50081099; // /9
+    inputValues.landing_y = -70.76794873; // /9
+    // inputValues.landing_x = 1.50081099; // /10
+    // inputValues.landing_y = -105.76794873; // /10
+    inputValues.should_view = true;
 
     // Check if the correct number of arguments is provided
     if (argc == 5) {
         // Parse command-line arguments
-        ply_file_path = argv[1];
-        output_csv_path = argv[2];
-        landing_x = std::stof(argv[3]);
-        landing_y = std::stof(argv[4]);
-        shouldView = false;
+        inputValues.ply_file_path = argv[1];
+        inputValues.output_csv_path = argv[2];
+        inputValues.landing_x = std::stof(argv[3]);
+        inputValues.landing_y = std::stof(argv[4]);
+        inputValues.should_view = false;
     }
     else if (argc != 1) {
         std::cout << "Usage: " << argv[0] << " <ply_file_path> <landing_x> <landing_y> <center_x> <center_y> <output_csv_path>\n";
         return 1;
     }
 
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr ogCloud = pcl_tools::loadPly(ply_file_path);
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr ogCloud = pcl_tools::loadPly(inputValues.ply_file_path);
 
     pcl::PointXYZRGB min_pt, max_pt;
     pcl::getMinMax3D(*ogCloud, min_pt, max_pt);
-    bool isLandingInbound = pcl_tools::checkInboundPoints(min_pt, max_pt, landing_x, landing_y);
+    bool isLandingInbound = pcl_tools::checkInboundPoints(min_pt, max_pt, inputValues.landing_x, inputValues.landing_y);
 
     if(!isLandingInbound){
         std::cout << "\n\nWARNING: Saving nan csv line because a point is not inbound\n\n";
-        saveToCSV(output_csv_path);
+        saveToCSV(inputValues.output_csv_path);
         return 0;
     }
 
-    pcl::PointXYZRGB rgbCenterPoint(-25.0, -25.0, 0.0, 255, 255, 255); //TODO
-    pcl::PointXYZRGB landingPoint(landing_x, landing_y, 0.0, 255, 255, 255);
-
-    const float downsample = DRONE_RADIUS/10.0;
-    const float maxGap = DRONE_RADIUS/3.0;
-    const float surfaceDownsample = downsample;
-    const float wshedDownsample = 2.0*surfaceDownsample;
+    const float DOWNSAMPLE = DRONE_RADIUS/10.0;
+    const float MAX_GAP = DRONE_RADIUS/3.0;
+    const float SURFACE_DOWNSAMPLE = 2.0*DOWNSAMPLE;
+    const float WSHED_DOWNSAMPLE = 2.0*SURFACE_DOWNSAMPLE;
+    const float WSHED_THRESH = 0.5;
+    const int WHSED_KERNEL = 3;
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr clusterCloud(new pcl::PointCloud<pcl::PointXYZRGB>(*ogCloud));
-    pcl_tools::downSamplePC(clusterCloud, downsample);
-    pcl_tools::extractBiggestCluster(clusterCloud, maxGap);
-    pcl_tools::BoundingBox clusterBB = pcl_tools::getBB(clusterCloud);
+    pcl_tools::downSamplePC(clusterCloud, DOWNSAMPLE);
+    pcl_tools::extractBiggestCluster(clusterCloud, MAX_GAP);
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr surfaceCloud(new pcl::PointCloud<pcl::PointXYZRGB>(*clusterCloud));
-    pcl_tools::extractSurface(surfaceCloud, surfaceDownsample);
-    pcl_tools::smoothPC(surfaceCloud, DRONE_RADIUS);
+    pcl_tools::extractSurface(surfaceCloud, SURFACE_DOWNSAMPLE);
 
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr segCloud = pcl_tools::segmentWatershed(surfaceCloud, wshedDownsample, DRONE_RADIUS, 0.5, 3);
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr treeCloud(new pcl::PointCloud<pcl::PointXYZRGB>(*surfaceCloud));
+    pcl_tools::smoothPC(treeCloud, DRONE_RADIUS);
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr segCloud = pcl_tools::segmentWatershed(treeCloud, WSHED_DOWNSAMPLE, DRONE_RADIUS, WSHED_THRESH, WHSED_KERNEL, inputValues.should_view);
 
-    pcl_tools::projectPoint(surfaceCloud, rgbCenterPoint);
+    pcl::PointXYZRGB landingPoint(inputValues.landing_x, inputValues.landing_y, 0.0, 255, 255, 255);
     pcl_tools::projectPoint(surfaceCloud, landingPoint);
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr landingCloud = pcl_tools::extractNeighborPC(ogCloud, landingPoint, 2*DRONE_RADIUS);
+    // std::cout << "landingPoint.z: " << landingPoint.z << std::endl;
+    // landingPoint.z = 25.0;
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr landingCloud(new pcl::PointCloud<pcl::PointXYZRGB>(*ogCloud));
+    pcl_tools::extractNeighborPC(landingCloud, landingPoint, 2.0*DRONE_RADIUS);
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr landingSurfaceCloud(new pcl::PointCloud<pcl::PointXYZRGB>(*surfaceCloud));
+    pcl_tools::extractNeighborPC(landingSurfaceCloud, landingPoint, 2.0*DRONE_RADIUS);
+    // pcl_tools::BoundingBox landingSurfaceCloudBB = pcl_tools::getBB(landingSurfaceCloud);
+    // std::cout << "landingSurfaceCloudBB.z: " << landingSurfaceCloudBB.centroid[2] << std::endl;
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr extremeCloud = pcl_tools::extractLocalExtremums(treeCloud, 2*DRONE_RADIUS);
 
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr extremeCloud = pcl_tools::extractLocalExtremums(surfaceCloud, 2*DRONE_RADIUS);
+    computeFeatures(inputValues, landingPoint, treeCloud, landingCloud, landingSurfaceCloud);
 
-    pcl::PointXYZRGB highestPoint = pcl_tools::getHighestPoint(surfaceCloud);
-
-    pcl::PrincipalCurvatures curvatures = pcl_tools::computeCurvature(surfaceCloud, landingPoint, 2*DRONE_RADIUS);
-    float density = pcl_tools::computeDensity(landingCloud, DRONE_RADIUS);
-    Eigen::Vector4f coef = pcl_tools::computePlane(landingCloud);
-    float slope = pcl_tools::computePlaneAngle(coef);
-    float stdDev = pcl_tools::computeStandardDeviation(landingCloud, coef);
-    float distTop = highestPoint.z - landingPoint.z;
-
-    std::vector<std::pair<float, float>> distsOfInterest = pcl_tools::computeDistToPointsOfInterest(
-        landingPoint, 
-        std::vector<pcl::PointXYZRGB>({
-            rgbCenterPoint,
-            highestPoint
-        })
-    );
-
-    saveToCSV(output_csv_path, curvatures, clusterBB, density, slope, stdDev, distTop, distsOfInterest);
-
-    if(shouldView){
+    if(inputValues.should_view){
         std::cout << "Viewing" << std::endl;
         pcl_tools::colorSegmentedPoints(ogCloud, pcl::RGB(255,255,255));
+        pcl_tools::colorSegmentedPoints(treeCloud, pcl::RGB(255,0,0));
         pcl_tools::colorSegmentedPoints(surfaceCloud, pcl::RGB(255,0,0));
-        pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{ogCloud, surfaceCloud});
+        pcl_tools::colorSegmentedPoints(landingCloud, pcl::RGB(0,255,0));
+        pcl_tools::colorSegmentedPoints(landingSurfaceCloud, pcl::RGB(0,0,255));
+        pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{ogCloud, landingCloud});
         // pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{segCloud});
     }
 
