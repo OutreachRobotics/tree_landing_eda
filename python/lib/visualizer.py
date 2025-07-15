@@ -123,7 +123,7 @@ def viz(_idx, _show_all):
 
 
 def main():
-    viz(13, True)
+    viz(15, True)
 
 if __name__=="__main__":
     main()
