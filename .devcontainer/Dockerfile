@@ -47,12 +47,13 @@ RUN /opt/conda/bin/conda init bash && \
     echo "conda activate docker" >> ~/.bashrc
 
 ENV PATH=/opt/conda/bin:$PATH
-RUN conda create --name docker python=3.10 && \
-    conda install -n docker -c conda-forge -y \
-    pip \
-    numpy=1.23.5 \
-    scipy==1.9.3
-
+RUN conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main && \
+    conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r && \
+    conda create --name docker -c conda-forge -y \
+        python=3.10 \
+        pip \
+        numpy=1.23.5 \
+        scipy==1.9.3
 
 ### PyProj install
 WORKDIR $WS
