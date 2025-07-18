@@ -171,14 +171,10 @@ int main(int argc, char* argv[])
 
     pcl::PointXYZRGB landingPoint(inputValues.landing_x, inputValues.landing_y, 0.0, 255, 255, 255);
     pcl_tools::projectPoint(surfaceCloud, landingPoint);
-    // std::cout << "landingPoint.z: " << landingPoint.z << std::endl;
-    // landingPoint.z = 25.0;
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr landingCloud(new pcl::PointCloud<pcl::PointXYZRGB>(*ogCloud));
     pcl_tools::extractNeighborPC(landingCloud, landingPoint, 2.0*DRONE_RADIUS);
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr landingSurfaceCloud(new pcl::PointCloud<pcl::PointXYZRGB>(*surfaceCloud));
     pcl_tools::extractNeighborPC(landingSurfaceCloud, landingPoint, 2.0*DRONE_RADIUS);
-    // pcl_tools::BoundingBox landingSurfaceCloudBB = pcl_tools::getBB(landingSurfaceCloud);
-    // std::cout << "landingSurfaceCloudBB.z: " << landingSurfaceCloudBB.centroid[2] << std::endl;
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr extremeCloud = pcl_tools::extractLocalExtremums(treeCloud, 2*DRONE_RADIUS);
 
     computeFeatures(inputValues, landingPoint, treeCloud, landingCloud, landingSurfaceCloud);
@@ -187,11 +183,13 @@ int main(int argc, char* argv[])
         std::cout << "Viewing" << std::endl;
         pcl_tools::colorSegmentedPoints(ogCloud, pcl::RGB(255,255,255));
         pcl_tools::colorSegmentedPoints(treeCloud, pcl::RGB(255,0,0));
-        pcl_tools::colorSegmentedPoints(surfaceCloud, pcl::RGB(255,0,0));
+        pcl_tools::colorSegmentedPoints(surfaceCloud, pcl::RGB(255,255,255));
         pcl_tools::colorSegmentedPoints(landingCloud, pcl::RGB(0,255,0));
         pcl_tools::colorSegmentedPoints(landingSurfaceCloud, pcl::RGB(0,0,255));
-        pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{ogCloud, landingCloud});
-        // pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{segCloud});
+        // pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{ogCloud, landingCloud});
+        // pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{surfaceCloud, landingSurfaceCloud});
+        // pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{surfaceCloud, treeCloud});
+        pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{segCloud});
     }
 
     return 0;
