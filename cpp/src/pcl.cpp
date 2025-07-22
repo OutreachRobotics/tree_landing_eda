@@ -155,7 +155,7 @@ int main(int argc, char* argv[])
     const float MAX_GAP = DRONE_RADIUS/3.0;
     const float SURFACE_DOWNSAMPLE = 2.0*DOWNSAMPLE;
     const float WSHED_DOWNSAMPLE = 2.0*SURFACE_DOWNSAMPLE;
-    const float WSHED_THRESH = 0.5;
+    const float WSHED_THRESH = 0.7;
     const int WHSED_KERNEL = 3;
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr clusterCloud(new pcl::PointCloud<pcl::PointXYZRGB>(*ogCloud));
@@ -166,8 +166,8 @@ int main(int argc, char* argv[])
     pcl_tools::extractSurface(surfaceCloud, SURFACE_DOWNSAMPLE);
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr treeCloud(new pcl::PointCloud<pcl::PointXYZRGB>(*surfaceCloud));
-    pcl_tools::smoothPC(treeCloud, DRONE_RADIUS);
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr segCloud = pcl_tools::segmentWatershed(treeCloud, WSHED_DOWNSAMPLE, DRONE_RADIUS, WSHED_THRESH, WHSED_KERNEL, inputValues.should_view);
+    // pcl_tools::smoothPC(treeCloud, DRONE_RADIUS);
 
     pcl::PointXYZRGB landingPoint(inputValues.landing_x, inputValues.landing_y, 0.0, 255, 255, 255);
     pcl_tools::projectPoint(surfaceCloud, landingPoint);
