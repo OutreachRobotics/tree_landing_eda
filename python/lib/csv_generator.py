@@ -8,8 +8,8 @@ import os
 import pandas as pd
 
 
-def generate_csv(_species: list[str]=[], _should_view: bool=False):
-    for i in range(0,len(_species)):
+def generate_csv(_init_idx: int=0, _species: list[str]=[], _should_view: bool=False):
+    for i in range(_init_idx,len(_species)):
         df = pd.DataFrame()
         df = add_deepforest(df, i)
         df = add_ardulog(df, i)
@@ -18,6 +18,9 @@ def generate_csv(_species: list[str]=[], _should_view: bool=False):
 
         df.to_csv(os.path.join(config.OUTPUTS_PATH, str(i), config.OUTPUT_CSV), index=False)
         print(df)
+
+        if _should_view:
+            viz(i)
 
 def generate_csv(_idx, _specie, _should_view: bool=False):
     df = pd.DataFrame()
@@ -29,6 +32,9 @@ def generate_csv(_idx, _specie, _should_view: bool=False):
     df.to_csv(os.path.join(config.OUTPUTS_PATH, str(_idx), config.OUTPUT_CSV), index=False)
     print(df)
 
+    if _should_view:
+        viz(_idx)
+
 
 def main():
     idx = 15
@@ -38,10 +44,8 @@ def main():
     pd.set_option('display.max_rows', None)  # Show all rows
     pd.set_option('display.max_columns', None)  # Show all columns
 
-    # generate_csv(['birch', 'maple'], should_viz)
+    # generate_csv(_idx, ['birch', 'maple'], should_viz)
     generate_csv(idx, specie, should_viz)
-    if should_viz:
-        viz(idx)
 
 
 if __name__=="__main__":

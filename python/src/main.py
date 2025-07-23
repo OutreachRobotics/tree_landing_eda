@@ -14,17 +14,24 @@ print(f"Project root: {project_root}")
 print(f"Current sys.path: {sys.path}")
 
 from csv_generator import generate_csv
-from visualizer import viz
 
 import config
 
 
 def main():
+   idx = 15
+   specie = 'birch'
+
+   init_idx = 12
    species = ['maple', 'chestnut', 'birch']
+
+   should_view = True
+
    for i in range(len(species)):
       os.makedirs(os.path.join(config.OUTPUTS_PATH, str(i)), exist_ok=True)
-   # generate_csv(species)
-   # viz(2)
+
+   # generate_csv(init_idx, species, should_view)
+   generate_csv(idx, specie, should_view)
 
 
 if __name__=="__main__":
