@@ -26,14 +26,24 @@ def run_pcl(_args):
 def add_pcl(_df, _idx, _should_view):
     pcl_data = []
     for i in range(len(_df)):
-        args = [
-            os.path.join(config.INPUTS_PATH, str(_idx), config.RTABMAP_CLOUD_PLY),
-            os.path.join(config.OUTPUTS_PATH, str(_idx), config.PCL_CSV),
-            str(_df.at[i, 'landing_x']),
-            str(_df.at[i, 'landing_y']),
-            str(_df.at[i, 'landing_z']),
-            str(_should_view).lower()
-        ]
+        if i == 0 and _should_view:
+            args = [
+                os.path.join(config.INPUTS_PATH, str(_idx), config.RTABMAP_CLOUD_PLY),
+                os.path.join(config.OUTPUTS_PATH, str(_idx), config.PCL_CSV),
+                str(_df.at[i, 'landing_x']),
+                str(_df.at[i, 'landing_y']),
+                str(_df.at[i, 'landing_z']),
+                str(True).lower()
+            ]
+        else:
+            args = [
+                os.path.join(config.INPUTS_PATH, str(_idx), config.RTABMAP_CLOUD_PLY),
+                os.path.join(config.OUTPUTS_PATH, str(_idx), config.PCL_CSV),
+                str(_df.at[i, 'landing_x']),
+                str(_df.at[i, 'landing_y']),
+                str(_df.at[i, 'landing_z']),
+                str(False).lower()
+            ]
         run_pcl(args)
         pcl_csv = pd.read_csv(os.path.join(config.OUTPUTS_PATH, str(_idx), config.PCL_CSV))
         pcl_data.append(pcl_csv.iloc[0].to_dict())

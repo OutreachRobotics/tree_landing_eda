@@ -1,10 +1,12 @@
 from ardulog import add_ardulog
 from deepforest import add_deepforest
 from pcl import add_pcl
+from visualizer import viz
 
 import config
 import os
 import pandas as pd
+
 
 def generate_csv(_species: list[str]=[], _should_view: bool=False):
     for i in range(0,len(_species)):
@@ -29,11 +31,17 @@ def generate_csv(_idx, _specie, _should_view: bool=False):
 
 
 def main():
+    idx = 15
+    specie = 'birch'
+    should_viz = True
+
     pd.set_option('display.max_rows', None)  # Show all rows
     pd.set_option('display.max_columns', None)  # Show all columns
 
-    # generate_csv(['birch', 'maple'])
-    generate_csv(15, 'birch', False)
+    # generate_csv(['birch', 'maple'], should_viz)
+    generate_csv(idx, specie, should_viz)
+    if should_viz:
+        viz(idx)
 
 
 if __name__=="__main__":

@@ -5,7 +5,7 @@ import config
 import open3d as o3d
 import os
 
-def add_home(_vis):
+def add_origin(_vis):
     sphere = o3d.geometry.TriangleMesh.create_sphere(radius=1.0)
     sphere.paint_uniform_color([0, 0, 1])
     sphere.translate([0, 0, 0])
@@ -85,24 +85,30 @@ def save_landing_cloud(_idx):
     # Save as PLY file
     o3d.io.write_point_cloud(os.path.join(config.INPUTS_PATH, str(_idx), config.LANDINGS_CLOUD_PLY), combined_pcd, write_ascii=False)
 
-def viz(_idx, _show_all):
+def viz(_idx, _show_all: bool = True):
     if _show_all:
         os.makedirs(os.path.join(config.OUTPUTS_PATH, str(_idx)), exist_ok=True)
         save_landing_cloud(_idx)
-        compute_geo_ref_rgb(
-            os.path.join(config.INPUTS_PATH, str(_idx), config.IMAGE_RGB_PNG),
-            os.path.join(config.INPUTS_PATH, str(_idx), config.IMAGE_RGB_POSE_CSV),
-            os.path.join(config.OUTPUTS_PATH, str(_idx), config.IMAGE_RGB_GEO_REF_TIF)
-        )
+
+        rgb_image_path = os.path.join(config.INPUTS_PATH, str(_idx), config.IMAGE_RGB_PNG)
+        pose_csv_path = os.path.join(config.INPUTS_PATH, str(_idx), config.IMAGE_RGB_POSE_CSV)
+        
+        if os.path.exists(rgb_image_path) and os.path.exists(pose_csv_path):
+            compute_geo_ref_rgb(
+                rgb_image_path,
+                pose_csv_path,
+                os.path.join(config.OUTPUTS_PATH, str(_idx), config.IMAGE_RGB_GEO_REF_TIF)
+            )
+        else:
+            print(f"Skipping geo-referencing for index {_idx} because input files are missing.")
+
         compute_geo_ref_cloud(
             os.path.join(config.INPUTS_PATH, str(_idx), config.RTABMAP_CLOUD_PLY),
-            # os.path.join(config.INPUTS_PATH, str(_idx), config.HOME_CSV),
             os.path.join(config.INPUTS_PATH, str(_idx), config.ORIGIN_CSV),
             os.path.join(config.OUTPUTS_PATH, str(_idx), config.RTABMAP_CLOUD_GEO_REF_LAS)
         )
         compute_geo_ref_cloud(
             os.path.join(config.INPUTS_PATH, str(_idx), config.LANDINGS_CLOUD_PLY),
-            # os.path.join(config.INPUTS_PATH, str(_idx), config.HOME_CSV),
             os.path.join(config.INPUTS_PATH, str(_idx), config.ORIGIN_CSV),
             os.path.join(config.OUTPUTS_PATH, str(_idx), config.LANDINGS_CLOUD_GEO_REF_LAS)
         )
@@ -114,7 +120,7 @@ def viz(_idx, _show_all):
     add_cloud(vis, _idx)
 
     if _show_all:
-        add_home(vis)
+        add_origin(vis)
         add_landing_cloud(vis, _idx)
 
     # Run visualization
