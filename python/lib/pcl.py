@@ -23,14 +23,16 @@ def run_pcl(_args):
         print("Error running the program:")
         print(e.stderr)  # Print the standard error of the program
 
-def add_pcl(_df, _idx):
+def add_pcl(_df, _idx, _should_view):
     pcl_data = []
     for i in range(len(_df)):
         args = [
             os.path.join(config.INPUTS_PATH, str(_idx), config.RTABMAP_CLOUD_PLY),
             os.path.join(config.OUTPUTS_PATH, str(_idx), config.PCL_CSV),
             str(_df.at[i, 'landing_x']),
-            str(_df.at[i, 'landing_y'])
+            str(_df.at[i, 'landing_y']),
+            str(_df.at[i, 'landing_z']),
+            str(_should_view).lower()
         ]
         run_pcl(args)
         pcl_csv = pd.read_csv(os.path.join(config.OUTPUTS_PATH, str(_idx), config.PCL_CSV))

@@ -1,6 +1,5 @@
 #include "pcl/pcl_tools.hpp"
 
-const int N_NEIGHBORS_SEARCH = 20;
 const float DRONE_RADIUS = 1.5;
 
 struct InputValues {
@@ -8,6 +7,7 @@ struct InputValues {
     std::string output_csv_path;
     float landing_x;
     float landing_y;
+    float landing_z;
     bool should_view;
 };
 
@@ -121,21 +121,28 @@ int main(int argc, char* argv[])
     inputValues.output_csv_path = "/home/docker/tree_landing_eda/data/outputs/9/output_pcl.csv";
     inputValues.landing_x = -50.50081099; // /9
     inputValues.landing_y = -70.76794873; // /9
-    // inputValues.landing_x = 1.50081099; // /10
-    // inputValues.landing_y = -105.76794873; // /10
+    inputValues.landing_z = 24.0; // /9
+    // // inputValues.landing_x = 1.50081099; // /10
+    // // inputValues.landing_y = -105.76794873; // /10
+    // inputValues.ply_file_path = "/home/docker/tree_landing_eda/data/inputs/15/rtabmap_cloud.ply";
+    // inputValues.output_csv_path = "/home/docker/tree_landing_eda/data/outputs/15/output_pcl.csv";
+    // inputValues.landing_x = -49.43891330529004; // /15
+    // inputValues.landing_y = 6.3688346687704325; // /15
+    // inputValues.landing_z = -2.795515726024803; // /15
     inputValues.should_view = true;
 
     // Check if the correct number of arguments is provided
-    if (argc == 5) {
+    if (argc == 7) {
         // Parse command-line arguments
         inputValues.ply_file_path = argv[1];
         inputValues.output_csv_path = argv[2];
         inputValues.landing_x = std::stof(argv[3]);
         inputValues.landing_y = std::stof(argv[4]);
-        inputValues.should_view = false;
+        inputValues.landing_z = std::stof(argv[5]);
+        std::istringstream(argv[6]) >> std::boolalpha >> inputValues.should_view;
     }
     else if (argc != 1) {
-        std::cout << "Usage: " << argv[0] << " <ply_file_path> <landing_x> <landing_y> <center_x> <center_y> <output_csv_path>\n";
+        std::cout << "Usage: " << argv[0] << " <ply_file_path> <output_csv_path> <landing_x> <landing_y> <landing_z> <should_view>\n";
         return 1;
     }
 
@@ -167,11 +174,19 @@ int main(int argc, char* argv[])
     pcl_tools::extractSurface(surfaceCloud, SURFACE_DOWNSAMPLE);
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr treeCloud(new pcl::PointCloud<pcl::PointXYZRGB>(*surfaceCloud));
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr segCloud = pcl_tools::segmentWatershed(treeCloud, WSHED_DOWNSAMPLE, DRONE_RADIUS, WSHED_THRESH, MEDIAN_KERNEL, GRADIENT_KERNEL, inputValues.should_view);
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr segCloud = pcl_tools::segmentWatershed(
+        treeCloud,
+        WSHED_DOWNSAMPLE,
+        DRONE_RADIUS,
+        WSHED_THRESH,
+        MEDIAN_KERNEL,
+        GRADIENT_KERNEL,
+        inputValues.should_view
+    );
     // pcl_tools::smoothPC(treeCloud, DRONE_RADIUS);
 
-    pcl::PointXYZRGB landingPoint(inputValues.landing_x, inputValues.landing_y, 0.0, 255, 255, 255);
-    pcl_tools::projectPoint(surfaceCloud, landingPoint);
+    pcl::PointXYZRGB landingPoint(inputValues.landing_x, inputValues.landing_y, inputValues.landing_z, 255, 255, 255);
+    // pcl_tools::projectPoint(surfaceCloud, landingPoint);
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr landingCloud(new pcl::PointCloud<pcl::PointXYZRGB>(*ogCloud));
     pcl_tools::extractNeighborPC(landingCloud, landingPoint, 2.0*DRONE_RADIUS);
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr landingSurfaceCloud(new pcl::PointCloud<pcl::PointXYZRGB>(*surfaceCloud));
@@ -182,7 +197,7 @@ int main(int argc, char* argv[])
 
     if(inputValues.should_view){
         std::cout << "Viewing" << std::endl;
-        pcl_tools::colorSegmentedPoints(ogCloud, pcl::RGB(255,255,255));
+        // pcl_tools::colorSegmentedPoints(ogCloud, pcl::RGB(255,255,255));
         pcl_tools::colorSegmentedPoints(treeCloud, pcl::RGB(255,0,0));
         pcl_tools::colorSegmentedPoints(surfaceCloud, pcl::RGB(255,255,255));
         pcl_tools::colorSegmentedPoints(landingCloud, pcl::RGB(0,255,0));

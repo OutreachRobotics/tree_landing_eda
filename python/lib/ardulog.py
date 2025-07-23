@@ -146,31 +146,19 @@ def add_ardulog(_df, _idx):
     df = _df.copy()
     coords_s, coords_f = run_ardulog(_idx)
 
-    # local_coords_s, local_coords_f = run_home(
-    #     os.path.join(config.INPUTS_PATH, str(_idx), config.HOME_CSV),
-    #     coords_s,
-    #     coords_f
-    # )
     local_coords_s, local_coords_f = run_origin(
         os.path.join(config.INPUTS_PATH, str(_idx), config.ORIGIN_CSV),
         coords_s,
         coords_f
     )
 
-    # local_coords_matched_s, local_coords_matched_f = run_project_alt(
-    #     os.path.join(config.INPUTS_PATH, str(_idx), config.RTABMAP_CLOUD_PLY),
-    #     local_coords_s,
-    #     local_coords_f
-    # )
-    local_coords_matched_s = local_coords_s
-    local_coords_matched_f = local_coords_f
+    success_values = np.concatenate([np.array([True] * len(local_coords_s)), np.array([False] * len(local_coords_f))])
+    combined_local_coords = local_coords_s + local_coords_f
 
-    success_values = np.concatenate([np.array([True] * len(local_coords_matched_s)), np.array([False] * len(local_coords_matched_f))])
-    combined_local_coords = local_coords_matched_s + local_coords_matched_f
-
-    df = df.loc[df.index.repeat(len(local_coords_matched_s) + len(local_coords_matched_f))].reset_index(drop=True)
+    df = df.loc[df.index.repeat(len(local_coords_s) + len(local_coords_f))].reset_index(drop=True)
     df.insert(0, 'success', success_values)
     df.insert(1, 'landing_x', np.array(combined_local_coords).T[0])
     df.insert(2, 'landing_y', np.array(combined_local_coords).T[1])
+    df.insert(3, 'landing_z', np.array(combined_local_coords).T[2])
 
     return df
