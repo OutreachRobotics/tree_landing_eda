@@ -1,4 +1,4 @@
-from ardulog import run_ardulog, run_home, run_project_alt, run_origin
+from ardulog import save_landing_cloud
 from geo_proj import compute_geo_ref_rgb, compute_geo_ref_cloud
 
 import config
@@ -15,6 +15,12 @@ def add_cloud(_vis, _idx):
     pcd = o3d.io.read_point_cloud(os.path.join(config.INPUTS_PATH, str(_idx), config.RTABMAP_CLOUD_PLY))
     _vis.add_geometry(pcd)
 
+def add_bbox(_vis, _idx):
+    pcd = o3d.io.read_point_cloud(os.path.join(config.INPUTS_PATH, str(_idx), config.RTABMAP_CLOUD_PLY))
+    bbox = pcd.get_minimal_oriented_bounding_box()
+    bbox.color = (1, 0, 0)
+    _vis.add_geometry(bbox)
+
 def add_landing_cloud(_vis, _idx):
     pcd = o3d.io.read_point_cloud(os.path.join(config.INPUTS_PATH, str(_idx), config.LANDINGS_CLOUD_PLY))
 
@@ -25,65 +31,6 @@ def add_landing_cloud(_vis, _idx):
         sphere.paint_uniform_color(pcd.colors[i])
         sphere.translate(pcd.points[i])
         _vis.add_geometry(sphere)
-
-def get_local_coords(_idx):
-    coords_s, coords_f = run_ardulog(_idx)
-
-    print('coords_s:')
-    print(coords_s)
-    print('coords_f:')
-    print(coords_f)
-
-    # local_coords_s, local_coords_f = run_home(
-    #     os.path.join(config.INPUTS_PATH, str(_idx), config.HOME_CSV),
-    #     coords_s,
-    #     coords_f
-    # )
-    local_coords_s, local_coords_f = run_origin(
-        os.path.join(config.INPUTS_PATH, str(_idx), config.ORIGIN_CSV),
-        coords_s,
-        coords_f
-    )
-
-    # print('local_coords_s:')
-    # print(local_coords_s)
-    # print('local_coords_f:')
-    # print(local_coords_f)
-
-    # local_coords_matched_s, local_coords_matched_f = run_project_alt(
-    #     os.path.join(config.INPUTS_PATH, str(_idx), config.RTABMAP_CLOUD_PLY),
-    #     local_coords_s,
-    #     local_coords_f
-    # )
-    local_coords_matched_s = local_coords_s
-    local_coords_matched_f = local_coords_f
-
-    # print('local_coords_matched_s:')
-    # print(local_coords_matched_s)
-    # print('local_coords_matched_f:')
-    # print(local_coords_matched_f)
-
-    return local_coords_matched_s, local_coords_matched_f
-
-def save_landing_cloud(_idx):
-    local_coords_s, local_coords_f = get_local_coords(_idx)
-
-    # Create separate point clouds
-    success_pcd = o3d.geometry.PointCloud()
-    success_pcd.points = o3d.utility.Vector3dVector(local_coords_s)
-    
-    failure_pcd = o3d.geometry.PointCloud()
-    failure_pcd.points = o3d.utility.Vector3dVector(local_coords_f)
-
-    # Assign colors
-    success_pcd.paint_uniform_color([0, 1, 0])  # Green for success
-    failure_pcd.paint_uniform_color([1, 0, 0])  # Red for failure
-
-    # Combine into a single point cloud
-    combined_pcd = success_pcd + failure_pcd
-
-    # Save as PLY file
-    o3d.io.write_point_cloud(os.path.join(config.INPUTS_PATH, str(_idx), config.LANDINGS_CLOUD_PLY), combined_pcd, write_ascii=False)
 
 def viz(_idx, _show_all: bool = True):
     if _show_all:
@@ -118,6 +65,7 @@ def viz(_idx, _show_all: bool = True):
     vis.create_window()
 
     add_cloud(vis, _idx)
+    add_bbox(vis, _idx)
 
     if _show_all:
         add_origin(vis)
@@ -129,7 +77,7 @@ def viz(_idx, _show_all: bool = True):
 
 
 def main():
-    viz(15, True)
+    viz(19, True)
 
 if __name__=="__main__":
     main()

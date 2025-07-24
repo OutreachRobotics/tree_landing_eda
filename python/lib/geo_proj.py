@@ -23,7 +23,7 @@ class DronePose:
 
 def get_home(_filepath_home):
     home_csv = pd.read_csv(_filepath_home)
-    coord_home = home_csv[['latitude', 'longitude', 'altitude']].iloc[0].tolist()
+    coord_home = np.array(home_csv[['latitude', 'longitude', 'altitude']].iloc[0].tolist())
 
     # Compensates mavros home ellipsoid to geoid
     # https://github.com/mavlink/mavros/blob/7ee83a833676af38a0cacc6c12733746f84cacca/mavros/src/plugins/home_position.cpp#L165
@@ -37,7 +37,7 @@ def get_home(_filepath_home):
 
 def get_origin(_filepath_origin):
     origin_csv = pd.read_csv(_filepath_origin)
-    coord_origin = origin_csv[['latitude', 'longitude', 'altitude']].iloc[0].tolist()
+    coord_origin = np.array(origin_csv[['latitude', 'longitude', 'altitude']].iloc[0].tolist())
 
     print('coord_origin from mavros:')
     print(coord_origin)
