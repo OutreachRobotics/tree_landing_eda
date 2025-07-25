@@ -77,7 +77,7 @@ def viz(_idx, _show_all: bool = True):
 
 
 def main():
-    viz(19, True)
+    viz(16, True)
 
 if __name__=="__main__":
     main()
