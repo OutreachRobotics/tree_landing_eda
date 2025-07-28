@@ -24,7 +24,7 @@ def generate_csv(_init_idx: int=0, _species: list[str]=[], _should_view: bool=Fa
 
 def main():
     idx = 16
-    species = ['birch', 'birch', 'birch', 'birch', 'conifer']
+    species = ['birch', 'birch', 'birch', 'conifer']
     should_viz = True
 
     pd.set_option('display.max_rows', None)  # Show all rows
