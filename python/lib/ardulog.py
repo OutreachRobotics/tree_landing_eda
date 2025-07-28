@@ -59,7 +59,7 @@ def find_closest_timestamps_idx(_input_timestamps, _timestamps_list):
     
     return closest_indices
 
-def extract_landings(_dfs, _timestamps):
+def extract_landings(_dfs, _timestamps, _is_success: bool):
     landing_idx_list = find_closest_timestamps_idx(_timestamps, _dfs['POS']['timestamp'].to_list())
 
     ### Extract landing positions ###
@@ -69,14 +69,15 @@ def extract_landings(_dfs, _timestamps):
     roll = _dfs['ATT']['Roll'][landing_idx_list].to_list()
     pitch = _dfs['ATT']['Pitch'][landing_idx_list].to_list()
 
-    return np.array([latitudes, longitudes, alt, roll, pitch]).T
+    success_flags = np.full(len(latitudes), _is_success)
+
+    return np.array([latitudes, longitudes, alt, roll, pitch, success_flags]).T
 
 def run_ardulog(_idx):
     mockup_logs = get_logs(_idx)
     type_request = ['RCIN', 'POS', 'ATT']
 
-    landings_s_list = []
-    landings_f_list = []
+    landings_list = []
     for mockup_log in mockup_logs:
         parsed_log = Ardupilot.parse(mockup_log, types=type_request, zero_time_base=True)
         dfs_mockup = parsed_log.dfs
@@ -86,13 +87,10 @@ def run_ardulog(_idx):
         landing_timestamps_s = extract_rising_edges(dfs_mockup['RCIN']['timestamp'], dfs_mockup['RCIN']['C5'], THRESHOLD)
         landing_timestamps_f = extract_rising_edges(dfs_mockup['RCIN']['timestamp'], dfs_mockup['RCIN']['C6'], THRESHOLD)
 
-        landings_s_list.append(extract_landings(dfs_mockup, landing_timestamps_s))
-        landings_f_list.append(extract_landings(dfs_mockup, landing_timestamps_f))
+        landings_list.append(extract_landings(dfs_mockup, landing_timestamps_s, True))
+        landings_list.append(extract_landings(dfs_mockup, landing_timestamps_f, False))
 
-    landings_s = np.vstack(landings_s_list)
-    landings_f = np.vstack(landings_f_list)
-
-    return landings_s, landings_f
+    return np.vstack(landings_list)
 
 def run_home(_filepath_home, _coords_s, _coords_f):
     coord_home = get_home(_filepath_home)
@@ -102,13 +100,12 @@ def run_home(_filepath_home, _coords_s, _coords_f):
 
     return local_coords_s, local_coords_f
 
-def run_origin(_filepath_origin, _coords_s, _coords_f):
+def run_origin(_filepath_origin, _landings):
     coord_origin = get_origin(_filepath_origin)
+    local_coords = np.array([get_local_coord(coord_origin, coord) for coord in _landings[:, :3]])
+    local_landings = np.concatenate((local_coords, _landings), axis=1)
 
-    local_coords_s = np.array([get_local_coord(coord_origin, coord) for coord in _coords_s])
-    local_coords_f = np.array([get_local_coord(coord_origin, coord) for coord in _coords_f])
-
-    return local_coords_s, local_coords_f
+    return local_landings
 
 def get_projected_alt(_coords, _points, _radius=0.8):
     coords = np.array(_coords)
@@ -142,33 +139,29 @@ def run_project_alt(_filepath_rtabmap, _local_coords_s, _local_coords_f):
 
     return local_coords_matched_s, local_coords_matched_f
 
-def get_bbox_filtered(_bbox, _landings, _distance_threshold):
-    grown_extent = _bbox.extent + [_distance_threshold, _distance_threshold, 999] # Ignore Z
-    grown_bbox = o3d.geometry.OrientedBoundingBox(_bbox.center, _bbox.R, grown_extent)
-    points_to_check = o3d.utility.Vector3dVector(_landings[:, :3])
-    indices_inside = grown_bbox.get_point_indices_within_bounding_box(points_to_check)
-    filtered_landings = np.asarray(_landings)[indices_inside]
-
-    return filtered_landings
-
-def run_bbox_filter(_filepath_rtabmap, _landings_s, _landings_f, _distance_threshold):
+def run_bbox_filter(_filepath_rtabmap, _landings, _distance_threshold):
     pcd = o3d.io.read_point_cloud(_filepath_rtabmap)
     obb = pcd.get_minimal_oriented_bounding_box()
 
-    local_coords_filtered_s = get_bbox_filtered(obb, _landings_s, _distance_threshold)
-    local_coords_filtered_f = get_bbox_filtered(obb, _landings_f, _distance_threshold)
+    grown_extent = obb.extent + [_distance_threshold, _distance_threshold, 999] # Ignore Z
+    grown_bbox = o3d.geometry.OrientedBoundingBox(obb.center, obb.R, grown_extent)
+    points_to_check = o3d.utility.Vector3dVector(_landings[:, :3])
+    indices_inside = grown_bbox.get_point_indices_within_bounding_box(points_to_check)
+    filtered_landings = np.asarray(_landings)[indices_inside]
     
-    return local_coords_filtered_s, local_coords_filtered_f
+    return filtered_landings
 
-def run_angle_filter(_landings_s, _landings_f, _max_angle):
-    condition = np.any(np.abs(_landings_s[:, 3:]) > _max_angle, axis=1)
-    bad_indices = np.where(condition)[0]
-    bad_landings = _landings_s[bad_indices]
+def run_angle_filter(_landings, _max_angle):
+    print('Angles: ')
+    print(_landings[:, -3:-1])
 
-    landings_filtered_s = np.delete(_landings_s, bad_indices, axis=0)
-    landings_filtered_f = np.vstack((_landings_f, bad_landings))
+    landings_filtered = _landings.copy()
+    success_mask = landings_filtered[:, -1] == True
+    angles_mask = np.any(np.abs(landings_filtered[:, -3:-1]) > _max_angle, axis=1)
+    rows_to_flip_mask = success_mask & angles_mask
+    landings_filtered[rows_to_flip_mask, -1] = False
 
-    return landings_filtered_s, landings_filtered_f
+    return landings_filtered
 
 def overlap_filter(_landings, _min_dist):
     if _landings.shape[0] < 2:
@@ -191,61 +184,67 @@ def overlap_filter(_landings, _min_dist):
     to_keep_mask = ~to_remove_mask
     return _landings[to_keep_mask]
 
-def run_overlap_filter(_landings_s, _landings_f, _min_dist):
-    filtered_landings_s = overlap_filter(_landings_s, _min_dist)
-    filtered_landings_f = overlap_filter(_landings_f, _min_dist)
+def run_overlap_filter(_landings, _min_dist):
+    success_mask = _landings[:, -1] == True
+    filtered_landings_s = overlap_filter(_landings[success_mask], _min_dist)
+    filtered_landings_f = overlap_filter(_landings[~success_mask], _min_dist)
+    filtered_landings = np.concatenate((filtered_landings_s, filtered_landings_f), axis=0)
 
-    return filtered_landings_s, filtered_landings_f
+    return filtered_landings
 
-def run_filtered_ardulog(_idx):
-    landings_s, landings_f = run_ardulog(_idx)
+def run_filtered_ardulog(_idx, _should_filter: bool=True):
+    landings = run_ardulog(_idx)
 
-    local_coords_s, local_coords_f = run_origin(
+    local_landings = run_origin(
         os.path.join(config.INPUTS_PATH, str(_idx), config.ORIGIN_CSV),
-        landings_s[:, :3],
-        landings_f[:, :3]
+        landings
     )
 
-    local_landings_s = np.concatenate((local_coords_s, landings_s[:, 3:]), axis=1)
-    local_landings_f = np.concatenate((local_coords_f, landings_f[:, 3:]), axis=1)
+    print('Unfiltered landings: ')
+    print(local_landings)
 
-    DRONE_RADIUS = 1.5
-    local_landings_bbox_s, local_landings_bbox_f = run_bbox_filter(
-        os.path.join(config.INPUTS_PATH, str(_idx), config.RTABMAP_CLOUD_PLY),
-        local_landings_s,
-        local_landings_f,
-        DRONE_RADIUS
-    )
+    landings_output = local_landings
 
-    MAX_ANGLE = 45.0
-    local_landings_angle_s, local_landings_angle_f = run_angle_filter(
-        local_landings_bbox_s,
-        local_landings_bbox_f,
-        MAX_ANGLE
-    )
+    if _should_filter:
+        DRONE_RADIUS = 1.5
+        local_landings_bbox = run_bbox_filter(
+            os.path.join(config.INPUTS_PATH, str(_idx), config.RTABMAP_CLOUD_PLY),
+            local_landings,
+            DRONE_RADIUS
+        )
 
-    # OVERLAP_DIST = 0.3
-    local_landings_overlap_s, local_landings_overlap_f = run_overlap_filter(
-        local_landings_angle_s,
-        local_landings_angle_f,
-        DRONE_RADIUS
-    )
+        MAX_ANGLE = 45.0
+        local_landings_angle = run_angle_filter(
+            local_landings_bbox,
+            MAX_ANGLE
+        )
 
-    return local_landings_overlap_s, local_landings_overlap_f
+        # OVERLAP_DIST = 0.3
+        local_landings_overlap = run_overlap_filter(
+            local_landings_angle,
+            DRONE_RADIUS/2.0
+        )
+
+        landings_output = local_landings_overlap
+
+        print('Filtered landings')
+        print(landings_output)
+
+    return landings_output
 
 
-def save_landing_cloud(_idx):
-    landings_s, landings_f = run_filtered_ardulog(_idx)
-
-    local_coords_s = landings_s[:, :3]
-    local_coords_f = landings_f[:, :3]
+def save_landing_cloud(_idx, _should_filter: bool=True):
+    landings = run_filtered_ardulog(_idx, _should_filter)
 
     # Create separate point clouds
+    local_coords = landings[:, :3]
+    success_mask = landings[:, -1] == True
+
     success_pcd = o3d.geometry.PointCloud()
-    success_pcd.points = o3d.utility.Vector3dVector(local_coords_s)
+    success_pcd.points = o3d.utility.Vector3dVector(local_coords[success_mask])
     
     failure_pcd = o3d.geometry.PointCloud()
-    failure_pcd.points = o3d.utility.Vector3dVector(local_coords_f)
+    failure_pcd.points = o3d.utility.Vector3dVector(local_coords[~success_mask])
 
     # Assign colors
     success_pcd.paint_uniform_color([0, 1, 0])  # Green for success
@@ -257,7 +256,7 @@ def save_landing_cloud(_idx):
     # Save as PLY file
     o3d.io.write_point_cloud(os.path.join(config.INPUTS_PATH, str(_idx), config.LANDINGS_CLOUD_PLY), combined_pcd, write_ascii=False)
 
-    return local_coords_s, local_coords_f
+    return local_coords
 
 def add_ardulog(_df, _idx):
     df = _df.copy()

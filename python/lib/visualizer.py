@@ -19,6 +19,7 @@ def add_bbox(_vis, _idx):
     pcd = o3d.io.read_point_cloud(os.path.join(config.INPUTS_PATH, str(_idx), config.RTABMAP_CLOUD_PLY))
     bbox = pcd.get_minimal_oriented_bounding_box()
     bbox.color = (1, 0, 0)
+    print(bbox.extent[2])
     _vis.add_geometry(bbox)
 
 def add_landing_cloud(_vis, _idx):
@@ -35,7 +36,7 @@ def add_landing_cloud(_vis, _idx):
 def viz(_idx, _show_all: bool = True):
     if _show_all:
         os.makedirs(os.path.join(config.OUTPUTS_PATH, str(_idx)), exist_ok=True)
-        save_landing_cloud(_idx)
+        save_landing_cloud(_idx, True)
 
         rgb_image_path = os.path.join(config.INPUTS_PATH, str(_idx), config.IMAGE_RGB_PNG)
         pose_csv_path = os.path.join(config.INPUTS_PATH, str(_idx), config.IMAGE_RGB_POSE_CSV)
@@ -65,10 +66,10 @@ def viz(_idx, _show_all: bool = True):
     vis.create_window()
 
     add_cloud(vis, _idx)
-    add_bbox(vis, _idx)
 
     if _show_all:
-        add_origin(vis)
+        # add_origin(vis)
+        # add_bbox(vis, _idx)
         add_landing_cloud(vis, _idx)
 
     # Run visualization
@@ -77,7 +78,7 @@ def viz(_idx, _show_all: bool = True):
 
 
 def main():
-    viz(16, True)
+    viz(19, True)
 
 if __name__=="__main__":
     main()
