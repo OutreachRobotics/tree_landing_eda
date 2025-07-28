@@ -229,7 +229,7 @@ def run_filtered_ardulog(_idx, _should_filter: bool=True):
             DRONE_RADIUS/2.0
         )
 
-        if local_landings_overlap:
+        if local_landings_overlap.size != 0:
             landings_output = local_landings_overlap
 
         print('Filtered landings')
