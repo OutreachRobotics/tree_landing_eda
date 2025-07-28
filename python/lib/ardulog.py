@@ -19,6 +19,10 @@ def get_logs(_idx):
         if filename.startswith(prefix) and filename.endswith('.bin'):
             # Join the folder path with the filename to get the full path
             log_files.append(os.path.join(folder_path, filename))
+
+    if not log_files:
+        print('Missing log files')
+    
     return log_files
 
 def extract_rising_edges(_timestamps, _signal, _threshold):
@@ -225,7 +229,8 @@ def run_filtered_ardulog(_idx, _should_filter: bool=True):
             DRONE_RADIUS/2.0
         )
 
-        landings_output = local_landings_overlap
+        if local_landings_overlap:
+            landings_output = local_landings_overlap
 
         print('Filtered landings')
         print(landings_output)
