@@ -94,7 +94,7 @@ void computeFeatures(
 
     pcl::PointXYZRGB highestPoint = pcl_tools::getHighestPoint(_treeCloud);
 
-    pcl::PrincipalCurvatures curvatures = pcl_tools::computeCurvature(_treeCloud, _landingPoint, 2*DRONE_RADIUS);
+    pcl::PrincipalCurvatures curvatures = pcl_tools::computeCurvature(_landingSurfaceCloud, _landingPoint, 2*DRONE_RADIUS);
     float density = pcl_tools::computeDensity(_landingCloud, DRONE_RADIUS);
     Eigen::Vector4f coef = pcl_tools::computePlane(_landingSurfaceCloud);
     float slope = pcl_tools::computePlaneAngle(coef);
@@ -117,11 +117,11 @@ int main(int argc, char* argv[])
     // std::cout << "Number of args received: " << argc << "\n";
     InputValues inputValues;
 
-    inputValues.ply_file_path = "/home/docker/tree_landing_eda/data/inputs/9/rtabmap_cloud.ply";
-    inputValues.output_csv_path = "/home/docker/tree_landing_eda/data/outputs/9/output_pcl.csv";
-    inputValues.landing_x = -50.50081099; // /9
-    inputValues.landing_y = -70.76794873; // /9
-    inputValues.landing_z = 24.0; // /9
+    // inputValues.ply_file_path = "/home/docker/tree_landing_eda/data/inputs/9/rtabmap_cloud.ply";
+    // inputValues.output_csv_path = "/home/docker/tree_landing_eda/data/outputs/9/output_pcl.csv";
+    // inputValues.landing_x = -50.50081099; // /9
+    // inputValues.landing_y = -70.76794873; // /9
+    // inputValues.landing_z = 24.0; // /9
     // // inputValues.landing_x = 1.50081099; // /10
     // // inputValues.landing_y = -105.76794873; // /10
     // inputValues.ply_file_path = "/home/docker/tree_landing_eda/data/inputs/15/rtabmap_cloud.ply";
@@ -129,6 +129,21 @@ int main(int argc, char* argv[])
     // inputValues.landing_x = -49.43891330529004; // /15
     // inputValues.landing_y = 6.3688346687704325; // /15
     // inputValues.landing_z = -2.795515726024803; // /15
+    // inputValues.ply_file_path = "/home/docker/tree_landing_eda/data/inputs/17/rtabmap_cloud.ply";
+    // inputValues.output_csv_path = "/home/docker/tree_landing_eda/data/outputs/17/output_pcl.csv";
+    // inputValues.landing_x = -80.50081099; // /17
+    // inputValues.landing_y = -14.76794873; // /17
+    // inputValues.landing_z = 18.5; // /17
+    inputValues.ply_file_path = "/home/docker/tree_landing_eda/data/inputs/18/rtabmap_cloud.ply";
+    inputValues.output_csv_path = "/home/docker/tree_landing_eda/data/outputs/18/output_pcl.csv";
+    inputValues.landing_x = -40.839020238257945; // /18
+    inputValues.landing_y = -39.268920878879726; // /18
+    inputValues.landing_z = 18.56451513902408; // /18
+    // inputValues.ply_file_path = "/home/docker/tree_landing_eda/data/inputs/16/rtabmap_cloud.ply";
+    // inputValues.output_csv_path = "/home/docker/tree_landing_eda/data/outputs/16/output_pcl.csv";
+    // inputValues.landing_x = -92.50081099; // /16
+    // inputValues.landing_y = -14.76794873; // /16
+    // inputValues.landing_z = 24.0; // /16
     inputValues.should_view = true;
 
     // Check if the correct number of arguments is provided
@@ -147,10 +162,7 @@ int main(int argc, char* argv[])
     }
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr ogCloud = pcl_tools::loadPly(inputValues.ply_file_path);
-
-    pcl::PointXYZRGB min_pt, max_pt;
-    pcl::getMinMax3D(*ogCloud, min_pt, max_pt);
-    bool isLandingInbound = pcl_tools::checkInboundPoints(min_pt, max_pt, inputValues.landing_x, inputValues.landing_y);
+    bool isLandingInbound = pcl_tools::checkInboundPoints(ogCloud, std::vector<float>{inputValues.landing_x, inputValues.landing_y, inputValues.landing_z});
 
     if(!isLandingInbound){
         std::cout << "\n\nWARNING: Saving nan csv line because a point is not inbound\n\n";

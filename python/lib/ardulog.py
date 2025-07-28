@@ -211,10 +211,11 @@ def run_filtered_ardulog(_idx, _should_filter: bool=True):
 
     if _should_filter:
         DRONE_RADIUS = 1.5
+
         local_landings_bbox = run_bbox_filter(
             os.path.join(config.INPUTS_PATH, str(_idx), config.RTABMAP_CLOUD_PLY),
             local_landings,
-            DRONE_RADIUS
+            0.0
         )
 
         MAX_ANGLE = 45.0
@@ -265,15 +266,12 @@ def save_landing_cloud(_idx, _should_filter: bool=True):
 
 def add_ardulog(_df, _idx):
     df = _df.copy()
-    coords_s, coords_f = save_landing_cloud(_idx)
+    coords = save_landing_cloud(_idx)
 
-    success_values = np.concatenate([np.array([True] * len(coords_s)), np.array([False] * len(coords_f))])
-    combined_local_coords = coords_s + coords_f
-
-    df = df.loc[df.index.repeat(len(coords_s) + len(coords_f))].reset_index(drop=True)
-    df.insert(0, 'success', success_values)
-    df.insert(1, 'landing_x', np.array(combined_local_coords).T[0])
-    df.insert(2, 'landing_y', np.array(combined_local_coords).T[1])
-    df.insert(3, 'landing_z', np.array(combined_local_coords).T[2])
+    df = df.loc[df.index.repeat(coords.shape[0])].reset_index(drop=True)
+    df.insert(0, 'success', coords.T[-1])
+    df.insert(1, 'landing_x', coords.T[0])
+    df.insert(2, 'landing_y', coords.T[1])
+    df.insert(3, 'landing_z', coords.T[2])
 
     return df
