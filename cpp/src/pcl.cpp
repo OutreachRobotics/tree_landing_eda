@@ -117,33 +117,27 @@ int main(int argc, char* argv[])
     // std::cout << "Number of args received: " << argc << "\n";
     InputValues inputValues;
 
-    // inputValues.ply_file_path = "/home/docker/tree_landing_eda/data/inputs/9/rtabmap_cloud.ply";
-    // inputValues.output_csv_path = "/home/docker/tree_landing_eda/data/outputs/9/output_pcl.csv";
-    // inputValues.landing_x = -50.50081099; // /9
-    // inputValues.landing_y = -70.76794873; // /9
-    // inputValues.landing_z = 24.0; // /9
-    // // inputValues.landing_x = 1.50081099; // /10
-    // // inputValues.landing_y = -105.76794873; // /10
-    // inputValues.ply_file_path = "/home/docker/tree_landing_eda/data/inputs/15/rtabmap_cloud.ply";
-    // inputValues.output_csv_path = "/home/docker/tree_landing_eda/data/outputs/15/output_pcl.csv";
-    // inputValues.landing_x = -49.43891330529004; // /15
-    // inputValues.landing_y = 6.3688346687704325; // /15
-    // inputValues.landing_z = -2.795515726024803; // /15
+    // inputValues.ply_file_path = "/home/docker/tree_landing_eda/data/inputs/16/rtabmap_cloud.ply";
+    // inputValues.output_csv_path = "/home/docker/tree_landing_eda/data/outputs/16/output_pcl.csv";
+    // inputValues.landing_x = -92.50081099; // /16
+    // inputValues.landing_y = -14.76794873; // /16
+    // inputValues.landing_z = 22.0; // /16
     // inputValues.ply_file_path = "/home/docker/tree_landing_eda/data/inputs/17/rtabmap_cloud.ply";
     // inputValues.output_csv_path = "/home/docker/tree_landing_eda/data/outputs/17/output_pcl.csv";
     // inputValues.landing_x = -80.50081099; // /17
     // inputValues.landing_y = -14.76794873; // /17
     // inputValues.landing_z = 18.5; // /17
-    inputValues.ply_file_path = "/home/docker/tree_landing_eda/data/inputs/18/rtabmap_cloud.ply";
-    inputValues.output_csv_path = "/home/docker/tree_landing_eda/data/outputs/18/output_pcl.csv";
-    inputValues.landing_x = -40.839020238257945; // /18
-    inputValues.landing_y = -39.268920878879726; // /18
-    inputValues.landing_z = 18.56451513902408; // /18
-    // inputValues.ply_file_path = "/home/docker/tree_landing_eda/data/inputs/16/rtabmap_cloud.ply";
-    // inputValues.output_csv_path = "/home/docker/tree_landing_eda/data/outputs/16/output_pcl.csv";
-    // inputValues.landing_x = -92.50081099; // /16
-    // inputValues.landing_y = -14.76794873; // /16
-    // inputValues.landing_z = 24.0; // /16
+    // inputValues.ply_file_path = "/home/docker/tree_landing_eda/data/inputs/18/rtabmap_cloud.ply";
+    // inputValues.output_csv_path = "/home/docker/tree_landing_eda/data/outputs/18/output_pcl.csv";
+    // inputValues.landing_x = -40.839020238257945; // /18
+    // inputValues.landing_y = -39.268920878879726; // /18
+    // inputValues.landing_z = 18.56451513902408; // /18
+    inputValues.ply_file_path = "/home/docker/tree_landing_eda/data/inputs/19/rtabmap_cloud.ply";
+    inputValues.output_csv_path = "/home/docker/tree_landing_eda/data/outputs/19/output_pcl.csv";
+    inputValues.landing_x = 0.0; // /19
+    inputValues.landing_y = -72.76794873; // /19
+    inputValues.landing_z = 22.0; // /19
+
     inputValues.should_view = true;
 
     // Check if the correct number of arguments is provided
@@ -173,10 +167,12 @@ int main(int argc, char* argv[])
     const float DOWNSAMPLE = DRONE_RADIUS/10.0;
     const float MAX_GAP = DRONE_RADIUS/3.0;
     const float SURFACE_DOWNSAMPLE = 2.0*DOWNSAMPLE;
-    const float WSHED_DOWNSAMPLE = 2.0*SURFACE_DOWNSAMPLE;
-    const float WSHED_THRESH = 0.7;
-    const int MEDIAN_KERNEL = 3;
-    const int GRADIENT_KERNEL = 5;
+    const float WSHED_DOWNSAMPLE = 1.2*SURFACE_DOWNSAMPLE;
+    const float WSHED_THRESH = 0.95;
+    const int MEDIAN_KERNEL = 5;
+    const int TOP_HAT_KERNEL = 9;
+    const float TOP_HAT_AMP = 10.0;
+    const float PACMAN_SOLIDITY = 0.6;
     const float CLUSTERS_SIZE_RATIO = 0.5;
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr clusterCloud(new pcl::PointCloud<pcl::PointXYZRGB>(*ogCloud));
@@ -186,25 +182,28 @@ int main(int argc, char* argv[])
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr surfaceCloud(new pcl::PointCloud<pcl::PointXYZRGB>(*clusterCloud));
     pcl_tools::extractSurface(surfaceCloud, SURFACE_DOWNSAMPLE);
 
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr treeCloud(new pcl::PointCloud<pcl::PointXYZRGB>(*surfaceCloud));
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr segCloud = pcl_tools::segmentWatershed(
-        treeCloud,
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr segCloud(new pcl::PointCloud<pcl::PointXYZRGB>(*surfaceCloud));
+    std::vector<pcl::PointIndices> clusters = pcl_tools::segmentWatershed(
+        segCloud,
         WSHED_DOWNSAMPLE,
         DRONE_RADIUS,
-        WSHED_THRESH,
         MEDIAN_KERNEL,
-        GRADIENT_KERNEL,
+        TOP_HAT_KERNEL,
+        TOP_HAT_AMP,
+        PACMAN_SOLIDITY,
         inputValues.should_view
     );
-    // pcl_tools::smoothPC(treeCloud, DRONE_RADIUS);
 
     pcl::PointXYZRGB landingPoint(inputValues.landing_x, inputValues.landing_y, inputValues.landing_z, 255, 255, 255);
-    // pcl_tools::projectPoint(surfaceCloud, landingPoint);
+
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr treeCloud(new pcl::PointCloud<pcl::PointXYZRGB>(*surfaceCloud));
+    extractClosestTree(treeCloud, clusters, landingPoint);
+
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr landingCloud(new pcl::PointCloud<pcl::PointXYZRGB>(*clusterCloud));
-    pcl_tools::extractNeighborPC(landingCloud, landingPoint, 2.0*DRONE_RADIUS);
+    pcl_tools::extractNeighborPC(landingCloud, landingPoint, 2.5*DRONE_RADIUS);
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr landingSurfaceCloud(new pcl::PointCloud<pcl::PointXYZRGB>(*surfaceCloud));
-    pcl_tools::extractNeighborPC(landingSurfaceCloud, landingPoint, 2.0*DRONE_RADIUS);
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr extremeCloud = pcl_tools::extractLocalExtremums(surfaceCloud, 2*DRONE_RADIUS);
+    pcl_tools::extractNeighborPC(landingSurfaceCloud, landingPoint, 2.5*DRONE_RADIUS);
+    // pcl::PointCloud<pcl::PointXYZRGB>::Ptr extremeCloud = pcl_tools::extractLocalExtremums(surfaceCloud, DRONE_RADIUS);
 
     computeFeatures(inputValues, landingPoint, treeCloud, landingCloud, landingSurfaceCloud);
 
@@ -212,7 +211,7 @@ int main(int argc, char* argv[])
         std::cout << "Viewing" << std::endl;
         // pcl_tools::colorSegmentedPoints(ogCloud, pcl::RGB(255,255,255));
         pcl_tools::colorSegmentedPoints(clusterCloud, pcl::RGB(255,255,0));
-        pcl_tools::colorSegmentedPoints(treeCloud, pcl::RGB(255,0,0));
+        // pcl_tools::colorSegmentedPoints(treeCloud, pcl::RGB(255,0,0));
         pcl_tools::colorSegmentedPoints(surfaceCloud, pcl::RGB(255,255,255));
         pcl_tools::colorSegmentedPoints(landingCloud, pcl::RGB(0,255,0));
         pcl_tools::colorSegmentedPoints(landingSurfaceCloud, pcl::RGB(0,0,255));
