@@ -119,24 +119,24 @@ int main(int argc, char* argv[])
 
     // inputValues.ply_file_path = "/home/docker/tree_landing_eda/data/inputs/16/rtabmap_cloud.ply";
     // inputValues.output_csv_path = "/home/docker/tree_landing_eda/data/outputs/16/output_pcl.csv";
-    // inputValues.landing_x = -92.50081099; // /16
-    // inputValues.landing_y = -14.76794873; // /16
-    // inputValues.landing_z = 22.0; // /16
+    // inputValues.landing_x = -96.0; // /16
+    // inputValues.landing_y = -14.0; // /16
+    // inputValues.landing_z = 20.0; // /16
     // inputValues.ply_file_path = "/home/docker/tree_landing_eda/data/inputs/17/rtabmap_cloud.ply";
     // inputValues.output_csv_path = "/home/docker/tree_landing_eda/data/outputs/17/output_pcl.csv";
-    // inputValues.landing_x = -80.50081099; // /17
-    // inputValues.landing_y = -14.76794873; // /17
+    // inputValues.landing_x = -80.0; // /17
+    // inputValues.landing_y = -19.0; // /17
     // inputValues.landing_z = 18.5; // /17
     // inputValues.ply_file_path = "/home/docker/tree_landing_eda/data/inputs/18/rtabmap_cloud.ply";
     // inputValues.output_csv_path = "/home/docker/tree_landing_eda/data/outputs/18/output_pcl.csv";
-    // inputValues.landing_x = -40.839020238257945; // /18
-    // inputValues.landing_y = -39.268920878879726; // /18
-    // inputValues.landing_z = 18.56451513902408; // /18
+    // inputValues.landing_x = -40.0; // /18
+    // inputValues.landing_y = -39.0; // /18
+    // inputValues.landing_z = 18.0; // /18
     inputValues.ply_file_path = "/home/docker/tree_landing_eda/data/inputs/19/rtabmap_cloud.ply";
     inputValues.output_csv_path = "/home/docker/tree_landing_eda/data/outputs/19/output_pcl.csv";
     inputValues.landing_x = 0.0; // /19
-    inputValues.landing_y = -72.76794873; // /19
-    inputValues.landing_z = 22.0; // /19
+    inputValues.landing_y = -75.0; // /19
+    inputValues.landing_z = 21.0; // /19
 
     inputValues.should_view = true;
 
@@ -196,12 +196,15 @@ int main(int argc, char* argv[])
 
     pcl::PointXYZRGB landingPoint(inputValues.landing_x, inputValues.landing_y, inputValues.landing_z, 255, 255, 255);
 
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr treeCloud(new pcl::PointCloud<pcl::PointXYZRGB>(*surfaceCloud));
-    extractClosestTree(treeCloud, clusters, landingPoint);
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr treeCloud = pcl_tools::extractClosestTree(
+        surfaceCloud,
+        clusters,
+        landingPoint
+    );
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr landingCloud(new pcl::PointCloud<pcl::PointXYZRGB>(*clusterCloud));
     pcl_tools::extractNeighborPC(landingCloud, landingPoint, 2.5*DRONE_RADIUS);
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr landingSurfaceCloud(new pcl::PointCloud<pcl::PointXYZRGB>(*surfaceCloud));
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr landingSurfaceCloud(new pcl::PointCloud<pcl::PointXYZRGB>(*treeCloud));
     pcl_tools::extractNeighborPC(landingSurfaceCloud, landingPoint, 2.5*DRONE_RADIUS);
     // pcl::PointCloud<pcl::PointXYZRGB>::Ptr extremeCloud = pcl_tools::extractLocalExtremums(surfaceCloud, DRONE_RADIUS);
 
@@ -211,15 +214,15 @@ int main(int argc, char* argv[])
         std::cout << "Viewing" << std::endl;
         // pcl_tools::colorSegmentedPoints(ogCloud, pcl::RGB(255,255,255));
         pcl_tools::colorSegmentedPoints(clusterCloud, pcl::RGB(255,255,0));
-        // pcl_tools::colorSegmentedPoints(treeCloud, pcl::RGB(255,0,0));
+        pcl_tools::colorSegmentedPoints(treeCloud, pcl::RGB(255,0,0));
         pcl_tools::colorSegmentedPoints(surfaceCloud, pcl::RGB(255,255,255));
         pcl_tools::colorSegmentedPoints(landingCloud, pcl::RGB(0,255,0));
         pcl_tools::colorSegmentedPoints(landingSurfaceCloud, pcl::RGB(0,0,255));
         // pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{ogCloud, clusterCloud});
-        // pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{ogCloud, landingCloud, treeCloud});
+        pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{ogCloud, landingCloud, treeCloud, landingSurfaceCloud});
         // pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{surfaceCloud, landingSurfaceCloud});
         // pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{surfaceCloud, treeCloud});
-        pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{segCloud});
+        // pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{segCloud});
     }
 
     return 0;
