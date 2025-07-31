@@ -32,9 +32,9 @@ void saveToCSV(
 
     // Write headers
     file << "Curvature_PC1,Curvature_PC2,Mean_Curvature,Gaussian_Curvature,"
-         << "Tree_Major_Diameter,Tree_Minor_Diameter"
-         << "Density,Slope,Standard_Deviation,Distance_Top"
-         << "Distance_RGB_Center_2D,Distance_PC_Center_2D,Distance_RGB_Center_3D,Distance_PC_Center_3D\n";
+         << "Tree_Major_Diameter,Tree_Minor_Diameter,"
+         << "Density,Slope,Standard_Deviation,Distance_Top,"
+         << "Distance_Tree_Center_2D,Distance_Tree_Highest_Point_2D,Distance_Tree_Center_3D,Distance_Tree_Highest_Point_3D\n";
 
     // Write data
     file << _curvatures.pc1 << "," << _curvatures.pc2 << "," << (_curvatures.pc1 + _curvatures.pc2) / 2.0f << "," << _curvatures.pc1 * _curvatures.pc2 << ","
@@ -45,9 +45,12 @@ void saveToCSV(
          << _distTop << ",";
 
 
-    for(auto& distOfInterest : _distsOfInterest)
+    for (size_t i = 0; i < _distsOfInterest.size(); ++i)
     {
-        file << distOfInterest.first << "," << distOfInterest.second;
+        file << _distsOfInterest[i].first << "," << _distsOfInterest[i].second;
+        if (i < _distsOfInterest.size() - 1) {
+            file << ",";
+        }
     }
 
     file << "\n";
