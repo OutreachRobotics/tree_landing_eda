@@ -186,8 +186,10 @@ int main(int argc, char* argv[])
     pcl_tools::extractSurface(surfaceCloud, SURFACE_DOWNSAMPLE);
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr segCloud(new pcl::PointCloud<pcl::PointXYZRGB>(*surfaceCloud));
-    std::vector<pcl::PointIndices> clusters = pcl_tools::segmentWatershed(
+    pcl::PointXYZRGB landingPoint(inputValues.landing_x, inputValues.landing_y, inputValues.landing_z, 255, 255, 255);
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr treeCloud = pcl_tools::computeWatershed(
         segCloud,
+        landingPoint,
         WSHED_DOWNSAMPLE,
         DRONE_RADIUS,
         MEDIAN_KERNEL,
@@ -195,14 +197,6 @@ int main(int argc, char* argv[])
         TOP_HAT_AMP,
         PACMAN_SOLIDITY,
         inputValues.should_view
-    );
-
-    pcl::PointXYZRGB landingPoint(inputValues.landing_x, inputValues.landing_y, inputValues.landing_z, 255, 255, 255);
-
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr treeCloud = pcl_tools::extractClosestTree(
-        surfaceCloud,
-        clusters,
-        landingPoint
     );
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr landingCloud(new pcl::PointCloud<pcl::PointXYZRGB>(*clusterCloud));
