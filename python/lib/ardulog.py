@@ -262,16 +262,22 @@ def save_landing_cloud(_idx, _should_filter: bool=True):
     # Save as PLY file
     o3d.io.write_point_cloud(os.path.join(config.INPUTS_PATH, str(_idx), config.LANDINGS_CLOUD_PLY), combined_pcd, write_ascii=False)
 
-    return local_coords
+    return landings
 
 def add_ardulog(_df, _idx):
-    df = _df.copy()
-    coords = save_landing_cloud(_idx)
+    df_ard = pd.DataFrame()
+    landings = save_landing_cloud(_idx)
 
-    df = df.loc[df.index.repeat(coords.shape[0])].reset_index(drop=True)
-    df.insert(0, 'success', coords.T[-1])
-    df.insert(1, 'landing_x', coords.T[0])
-    df.insert(2, 'landing_y', coords.T[1])
-    df.insert(3, 'landing_z', coords.T[2])
+    df_ard = pd.DataFrame({
+        'success': landings.T[-1],
+        'landing_x': landings.T[0],
+        'landing_y': landings.T[1],
+        'landing_z': landings.T[2],
+        'landing_lat': landings.T[3],
+        'landing_long': landings.T[4],
+        'landing_alt': landings.T[5],
+        'landing_roll': landings.T[6],
+        'landing_pitch': landings.T[7]
+    })
 
-    return df
+    return pd.concat([_df, df_ard], axis=1)

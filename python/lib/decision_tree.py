@@ -6,8 +6,8 @@ import dtreeviz
 import pandas as pd
 import os
 
-def decision_tree(_idx):
-    output_csv = pd.read_csv(os.path.join(config.OUTPUTS_PATH, str(_idx), config.OUTPUT_CSV))
+def decision_tree():
+    output_csv = pd.read_csv(os.path.join(config.OUTPUTS_PATH, config.OUTPUT_CSV))
     raw_len = len(output_csv)
 
     output_csv = output_csv.dropna()
@@ -24,6 +24,8 @@ def decision_tree(_idx):
     print('Dropped ' + str(dropped_len) + 'rows containing nan value.')
     print(output_csv)
 
+    output_csv['success'] = (output_csv['success']).astype(int)
+
     y = output_csv['success']
     X = output_csv.drop(['success', 'specie'], axis=1)
     clf = tree.DecisionTreeClassifier(max_depth=3)
@@ -37,12 +39,11 @@ def decision_tree(_idx):
     )
 
     v = viz_model.view(fontname='DejaVu Sans')
-    os.path.join(config.OUTPUTS_PATH, str(_idx), config.OUTPUT_CSV)
-    v.save(os.path.join(config.OUTPUTS_PATH, str(_idx), config.DECISIONTREE_SVG))
+    v.save(os.path.join(config.OUTPUTS_PATH, config.DECISIONTREE_SVG))
 
 
 def main():
-    decision_tree(2)
+    decision_tree(16)
 
 if __name__=='__main__':
     main()

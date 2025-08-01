@@ -14,6 +14,7 @@ print(f"Project root: {project_root}")
 print(f"Current sys.path: {sys.path}")
 
 from csv_generator import generate_csv, combine_csv
+from decision_tree import decision_tree
 
 import config
 
@@ -25,6 +26,7 @@ def main():
 
    generate_csv(init_idx, species, should_view)
    combine_csv()
+   decision_tree()
 
 if __name__=="__main__":
     main()
