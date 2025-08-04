@@ -78,10 +78,21 @@ def extract_landings(_dfs, _timestamps, _is_success: bool):
     return np.array([latitudes, longitudes, alt, roll, pitch, success_flags]).T
 
 def run_ardulog(_idx):
-    mockup_logs = get_logs(_idx)
-    type_request = ['RCIN', 'POS', 'ATT']
+    origin_path = os.path.join(config.INPUTS_PATH, str(_idx), config.ORIGIN_CSV)
 
     landings_list = []
+    mockup_logs = get_logs(_idx)
+    type_request = ['RCIN', 'POS', 'ATT']
+    should_compensate = True
+
+    if not os.path.exists(origin_path):
+        print(f"WARN: {origin_path} from mavros was not found, saving mockup_logs[0]'s origin as {config.ORIGIN_LOG_CSV} instead.")
+        origin_path = os.path.join(config.INPUTS_PATH, str(_idx), config.ORIGIN_LOG_CSV)
+        parsed_log = Ardupilot.parse(mockup_logs[0], types=['ORGN'], zero_time_base=True)
+        log_origin = [parsed_log.dfs['ORGN']['Lat'], parsed_log.dfs['ORGN']['Lng'], parsed_log.dfs['ORGN']['Alt']]
+        save_origin(origin_path, log_origin)
+        should_compensate = False
+
     for mockup_log in mockup_logs:
         parsed_log = Ardupilot.parse(mockup_log, types=type_request, zero_time_base=True)
         dfs_mockup = parsed_log.dfs
@@ -94,7 +105,13 @@ def run_ardulog(_idx):
         landings_list.append(extract_landings(dfs_mockup, landing_timestamps_s, True))
         landings_list.append(extract_landings(dfs_mockup, landing_timestamps_f, False))
 
-    return np.vstack(landings_list)
+    local_landings_list = run_origin(
+        os.path.join(origin_path),
+        np.vstack(landings_list),
+        should_compensate
+    )
+
+    return local_landings_list
 
 def run_home(_filepath_home, _coords_s, _coords_f):
     coord_home = get_home(_filepath_home)
@@ -104,8 +121,24 @@ def run_home(_filepath_home, _coords_s, _coords_f):
 
     return local_coords_s, local_coords_f
 
-def run_origin(_filepath_origin, _landings):
-    coord_origin = get_origin(_filepath_origin)
+def save_origin(_filepath_origin, _origin):
+    origin_dict = {
+        'latitude': _origin[0],
+        'longitude': _origin[1],
+        'altitude': _origin[2],
+    }
+
+    origin_df = pd.DataFrame(origin_dict)
+
+    output_dir = os.path.dirname(_filepath_origin)
+    os.makedirs(output_dir, exist_ok=True)
+    origin_df.to_csv(_filepath_origin, index=False)
+    
+    print(f"Origin from log data successfully saved to {_filepath_origin}.")
+
+
+def run_origin(_filepath_origin, _landings, _should_compensate: bool = True):
+    coord_origin = get_origin(_filepath_origin, _should_compensate)
     local_coords = np.array([get_local_coord(coord_origin, coord) for coord in _landings[:, :3]])
     local_landings = np.concatenate((local_coords, _landings), axis=1)
 
@@ -199,39 +232,34 @@ def run_overlap_filter(_landings, _min_dist):
 def run_filtered_ardulog(_idx, _should_filter: bool=True):
     landings = run_ardulog(_idx)
 
-    local_landings = run_origin(
-        os.path.join(config.INPUTS_PATH, str(_idx), config.ORIGIN_CSV),
-        landings
-    )
-
     print('Unfiltered landings: ')
-    print(local_landings)
+    print(landings)
 
-    landings_output = local_landings
+    landings_output = landings
 
     if _should_filter:
         DRONE_RADIUS = 1.5
 
-        local_landings_bbox = run_bbox_filter(
+        landings_bbox = run_bbox_filter(
             os.path.join(config.INPUTS_PATH, str(_idx), config.RTABMAP_CLOUD_PLY),
-            local_landings,
+            landings,
             0.0
         )
 
         MAX_ANGLE = 45.0
-        local_landings_angle = run_angle_filter(
-            local_landings_bbox,
+        landings_angle = run_angle_filter(
+            landings_bbox,
             MAX_ANGLE
         )
 
         # OVERLAP_DIST = 0.3
-        local_landings_overlap = run_overlap_filter(
-            local_landings_angle,
+        landings_overlap = run_overlap_filter(
+            landings_angle,
             DRONE_RADIUS/2.0
         )
 
-        if local_landings_overlap.size != 0:
-            landings_output = local_landings_overlap
+        if landings_overlap.size != 0:
+            landings_output = landings_overlap
 
         print('Filtered landings')
         print(landings_output)

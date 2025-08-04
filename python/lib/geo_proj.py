@@ -35,20 +35,21 @@ def get_home(_filepath_home):
 
     return coord_home
 
-def get_origin(_filepath_origin):
+def get_origin(_filepath_origin, _should_compensate: bool = True):
     origin_csv = pd.read_csv(_filepath_origin)
     coord_origin = np.array(origin_csv[['latitude', 'longitude', 'altitude']].iloc[0].tolist())
 
-    print('coord_origin from mavros:')
+    print('coord_origin raw:')
     print(coord_origin)
 
-    # Compensates mavros home ellipsoid to geoid
-    # https://github.com/mavlink/mavros/blob/7ee83a833676af38a0cacc6c12733746f84cacca/mavros/src/plugins/home_position.cpp#L165
-    undulation = get_geoid_undulation(coord_origin[0], coord_origin[1])
-    coord_origin[2] += undulation
+    if _should_compensate:
+        # Compensates mavros home ellipsoid to geoid
+        # https://github.com/mavlink/mavros/blob/7ee83a833676af38a0cacc6c12733746f84cacca/mavros/src/plugins/home_position.cpp#L165
+        undulation = get_geoid_undulation(coord_origin[0], coord_origin[1])
+        coord_origin[2] += undulation
 
-    print('coord_origin undulation compensated:')
-    print(coord_origin)
+        print('coord_origin undulation compensated:')
+        print(coord_origin)
 
     return coord_origin
 
@@ -282,7 +283,7 @@ def save_raster(_output_img_file, _png_img, _transform):
         for band in range(3):
             dst.write(_png_img[:, :, band], band + 1)
 
-def compute_geo_ref_rgb(_input_img_file: str, _input_img_pose_file: str, _output_img_file: str):
+def compute_geo_ref_rgb(_input_img_file: str, _output_img_file: str, _input_img_pose_file: str):
     global_pose = get_global_pose(_input_img_pose_file)
     drone_pose = DronePose(global_pose[0], global_pose[1], global_pose[2], global_pose[3])
 
@@ -379,11 +380,7 @@ def compute_pdal(_transform, _input_file, _output_file):
     # Execute the pipeline
     pipeline.execute()
 
-def compute_geo_ref_cloud(_input_file: str, _origin_file: str, _output_file: str):
-    # coord_home = get_home(_home_file)
-    # home_lat = coord_home[0]
-    # home_long = coord_home[1]
-
+def compute_geo_ref_cloud(_input_file: str,  _output_file: str, _origin_file: str):
     coord_origin = get_origin(_origin_file)
     origin_lat = coord_origin[0]
     origin_long = coord_origin[1]
@@ -417,14 +414,13 @@ def main():
     id = 5
     compute_geo_ref_rgb(
         os.path.join(config.INPUTS_PATH, str(id), config.IMAGE_RGB_PNG),
-        os.path.join(config.INPUTS_PATH, str(id), config.IMAGE_RGB_POSE_CSV),
-        os.path.join(config.OUTPUTS_PATH, str(id), config.IMAGE_RGB_GEO_REF_TIF)
+        os.path.join(config.OUTPUTS_PATH, str(id), config.IMAGE_RGB_GEO_REF_TIF),
+        os.path.join(config.INPUTS_PATH, str(id), config.IMAGE_RGB_POSE_CSV)
     )
     compute_geo_ref_cloud(
         os.path.join(config.INPUTS_PATH, str(id), config.RTABMAP_CLOUD_PLY),
-        # os.path.join(config.INPUTS_PATH, str(id), config.HOME_CSV),
-        os.path.join(config.INPUTS_PATH, str(id), config.ORIGIN_CSV),
-        os.path.join(config.OUTPUTS_PATH, str(id), config.RTABMAP_CLOUD_GEO_REF_LAS)
+        os.path.join(config.OUTPUTS_PATH, str(id), config.RTABMAP_CLOUD_GEO_REF_LAS),
+        os.path.join(config.INPUTS_PATH, str(id), config.ORIGIN_CSV)
     )
 
 if __name__=="__main__":
