@@ -23,10 +23,11 @@ def main():
    init_idx = 16
    species = ['birch', 'birch', 'birch', 'conifer']
    should_view = False
+   ignore_list = []
 
    generate_csv(init_idx, species, should_view)
    combine_csv()
-   decision_tree()
+   decision_tree(ignore_list)
 
 if __name__=="__main__":
     main()

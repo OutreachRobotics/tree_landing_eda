@@ -6,7 +6,7 @@ import dtreeviz
 import pandas as pd
 import os
 
-def decision_tree():
+def decision_tree(_ignore_list: list[str] = []):
     output_csv = pd.read_csv(os.path.join(config.OUTPUTS_PATH, config.OUTPUT_CSV))
     raw_len = len(output_csv)
 
@@ -16,6 +16,13 @@ def decision_tree():
     if output_csv.empty:
         print('No data remaining after dropping NaN rows. Aborting decision tree.')
         return
+    
+    ignore_list = [
+        'success','landing_x','landing_y','landing_z',
+        'landing_lat','landing_long','landing_alt',
+        'landing_roll','landing_pitch','specie'
+    ]
+    ignore_list.extend(_ignore_list)
 
     le = LabelEncoder()
     output_csv['specie_encoded'] = le.fit_transform(output_csv['specie'])
@@ -27,7 +34,7 @@ def decision_tree():
     output_csv['success'] = (output_csv['success']).astype(int)
 
     y = output_csv['success']
-    X = output_csv.drop(['success', 'specie'], axis=1)
+    X = output_csv.drop(ignore_list, axis=1)
     clf = tree.DecisionTreeClassifier(max_depth=3)
     clf = clf.fit(X.values, y.values)
 
