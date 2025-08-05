@@ -21,6 +21,12 @@ TZKINV_TXT = 'TZKinv.txt'
 OUTPUT_CSV = 'output.csv'
 DECISIONTREE_SVG = 'decisiontree.svg'
 
+IGNORE_LIST = [
+    'landing_x','landing_y','landing_z',
+    'landing_lat','landing_long','landing_alt',
+    'landing_roll','landing_pitch'
+]
+
 CAM_FOV_H = 87
 CAM_FOV_V = 58
 

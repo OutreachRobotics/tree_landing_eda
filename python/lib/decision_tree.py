@@ -17,12 +17,10 @@ def decision_tree(_ignore_list: list[str] = []):
         print('No data remaining after dropping NaN rows. Aborting decision tree.')
         return
     
-    ignore_list = [
-        'success','landing_x','landing_y','landing_z',
-        'landing_lat','landing_long','landing_alt',
-        'landing_roll','landing_pitch','specie'
-    ]
-    ignore_list.extend(_ignore_list)
+    ignore_list = config.IGNORE_LIST.copy()
+    ignore_list.extend(['success','specie'])
+    if _ignore_list:
+        ignore_list.extend(_ignore_list)
 
     le = LabelEncoder()
     output_csv['specie_encoded'] = le.fit_transform(output_csv['specie'])
@@ -50,7 +48,7 @@ def decision_tree(_ignore_list: list[str] = []):
 
 
 def main():
-    decision_tree(16)
+    decision_tree()
 
 if __name__=='__main__':
     main()
