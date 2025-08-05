@@ -1,0 +1,133 @@
+from statsmodels.stats.outliers_influence import variance_inflation_factor
+from statsmodels.tools.tools import add_constant
+
+import config
+import matplotlib.pyplot as plt
+import os
+import pandas as pd
+import seaborn as sns
+
+def analyze_multicollinearity(_filepath: str):
+    """
+    Loads data from a CSV and computes multicollinearity diagnostics.
+
+    This function performs two main checks:
+    1. A correlation matrix heatmap for a quick visual inspection.
+    2. A Variance Inflation Factor (VIF) analysis for a robust statistical measure.
+
+    Args:
+        filepath (str): The path to the input CSV file.
+    """
+    try:
+        df = pd.read_csv(_filepath)
+    except FileNotFoundError:
+        print(f"Error: The file was not found at '{_filepath}'")
+        return
+
+    # --- 1. Correlation Matrix ---
+    print("--- 1. Correlation Matrix Analysis ---")
+    
+    # Select only numeric columns for correlation calculation
+    ignore_list = config.IGNORE_LIST.copy()
+    ignore_list.extend(['success','specie'])
+    df_to_analyze = df.dropna().drop(columns=ignore_list, errors='ignore')
+
+    corr_matrix = df_to_analyze.corr()
+
+    # It's often helpful to look at the raw matrix first
+    print("Correlation Matrix:")
+    print(corr_matrix)
+
+    # Now, let's visualize it with a heatmap for better interpretation
+    plt.figure(figsize=(12, 10))
+    sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', fmt=".2f")
+    plt.title('Correlation Matrix Heatmap')
+    plt.show()
+
+    print("\nInterpretation:")
+    print("Look for values close to +1.0 or -1.0 (excluding the main diagonal).")
+    print("A common rule of thumb is that a correlation > 0.8 or < -0.8 indicates high collinearity.")
+    
+    # --- 2. Variance Inflation Factor (VIF) ---
+    print("\n--- 2. Variance Inflation Factor (VIF) Analysis ---")
+    
+    # VIF is a more rigorous test. It requires a constant (intercept) term.
+    # We use the same numeric columns as before.
+    X = add_constant(df_to_analyze)
+
+    # Create a DataFrame to hold the VIF results
+    vif_df = pd.DataFrame()
+    vif_df["Variable"] = X.columns
+    vif_df["VIF"] = [variance_inflation_factor(X.values, i) for i in range(X.shape[1])]
+
+    print("Variance Inflation Factor (VIF):")
+    # The VIF for the constant is usually very high and not interpretable, so we can drop it.
+    print(vif_df[vif_df['Variable'] != 'const'])
+    
+    print("\nInterpretation:")
+    print("VIF = 1: No correlation")
+    print("1 < VIF < 5: Moderate correlation")
+    print("VIF > 5 or 10: High correlation (this threshold is a rule of thumb)")
+    print("A VIF of infinity (inf) means perfect collinearity (e.g., one variable is derived from another).")
+
+def plot_pair_plot(_filepath: str):
+    """
+    Generates and displays a pair plot (scatter plot matrix) for numeric variables.
+    
+    This is a great way to visually explore the data before diving into the numbers.
+    A perfect task for a relaxing Monday evening.
+    """
+    try:
+        df = pd.read_csv(_filepath)
+    except FileNotFoundError:
+        print(f"Error: The file was not found at '{_filepath}'")
+        return
+
+    print("\n--- 2. Generating Pair Plot ---")
+    ignore_list = config.IGNORE_LIST.copy()
+    ignore_list.extend(['specie'])
+    df_to_plot = df.dropna().drop(columns=ignore_list, errors='ignore')
+
+    if df_to_plot.shape[1] < 2:
+        print("Not enough numeric columns to generate a pair plot.")
+        return
+        
+    # A practical check: Pair plots with too many variables can be slow and unreadable.
+    if df_to_plot.shape[1] > 10:
+        print(f"Warning: Generating a pair plot for {df_to_plot.shape[1]} variables."
+              "This may take some time and be difficult to read.")
+        
+    cols_to_plot = [
+        col for col in df_to_plot
+    ]
+
+    if len(cols_to_plot) < 1:
+        print("Not enough numeric columns to generate a pair plot.")
+        return
+    
+    outcome_colors = {
+        1.0: 'green',
+        0.0: 'red'
+    }
+
+    hue_column = 'success'
+
+    if hue_column in cols_to_plot:
+        cols_to_plot.remove(hue_column)
+
+    g = sns.pairplot(
+            df_to_plot,
+            vars=cols_to_plot,
+            hue=hue_column,
+            palette=outcome_colors,
+            diag_kind='kde'
+        )
+        
+    g.fig.suptitle(f'Pair Plot Colored by "{hue_column}"', y=1.02)
+    plt.tight_layout()
+    plt.show()
+
+
+if __name__ == '__main__':
+    analyze_multicollinearity(os.path.join(config.OUTPUTS_PATH, config.OUTPUT_CSV))
+    plot_pair_plot(os.path.join(config.OUTPUTS_PATH, config.OUTPUT_CSV))
