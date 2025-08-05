@@ -34,7 +34,9 @@ RUN sudo -E apt-get update && \
     libpcl-dev \
     libgl1-mesa-glx \
     libglib2.0-0 \
-    libopencv-dev
+    libopencv-dev \
+    python3-tk \
+    graphviz
 
 ### Install Conda
 RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O /tmp/miniconda.sh && \
@@ -55,57 +57,39 @@ RUN conda tos accept --override-channels --channel https://repo.anaconda.com/pkg
         numpy=1.23.5 \
         scipy==1.9.3
 
-### PyProj install
+### Conda packages
 WORKDIR $WS
 RUN conda install -n docker -c conda-forge -y \
     pyproj \
     proj \
-    proj-data
-
-### ArduPilot logs tools
-WORKDIR $WS
-RUN sudo -E apt-get update -y && \
-    sudo -E apt-get install -y \
-    python3-tk
-RUN conda install -n docker -c conda-forge -y \
+    proj-data \
     pandas \
     matplotlib \
-    affine
-RUN conda run -n docker pip install ardupilot_log_reader
+    affine \
+    libstdcxx-ng \
+    rasterio \
+    matplotlib \
+    scikit-learn \
+    pdal \
+    python-pdal \
+    gdal \
+    statsmodels \
+    seaborn
+
+### Conda pip tools
+WORKDIR $WS
+RUN conda run -n docker pip install \
+    open3d-cpu \
+    ardupilot_log_reader \
+    dtreeviz
 
 ### PC post process tools
-WORKDIR $WS
-RUN conda install -n docker -c conda-forge libstdcxx-ng -y
-RUN conda run -n docker pip install open3d-cpu
 # https://github.com/isl-org/Open3D/issues/6872#issuecomment-2615797521
 ENV XDG_SESSION_TYPE=x11
 
 # PDAL
-RUN conda install -n docker -c conda-forge -y \
-    pdal \
-    python-pdal \
-    gdal
+WORKDIR $WS
 RUN conda install -n docker -c conda-forge --force-reinstall -y libsqlite
 ENV GDAL_DATA=/opt/conda/envs/docker/share/gdal
 ENV PROJ_LIB=/opt/conda/envs/docker/share/proj
 RUN ln -s /opt/conda/envs/docker/lib/libdraco.so.9 /opt/conda/envs/docker/lib/libdraco.so.8
-
-### RGB post process tools
-WORKDIR $WS
-RUN conda install -n docker -c conda-forge -y rasterio
-
-### Decision tree   
-# For matplotlib
-WORKDIR $WS
-ARG DEBIAN_FRONTEND="noninteractive"
-ENV TZ="America/New_York"
-RUN sudo -E apt-get update -y && \
-    sudo -E apt-get install -y \
-    python3-tk \
-    graphviz
-RUN conda install -n docker -c conda-forge -y \
-    pandas \
-    matplotlib \
-    scikit-learn
-RUN conda run -n docker pip install \
-    dtreeviz
