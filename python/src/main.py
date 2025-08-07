@@ -20,7 +20,7 @@ import config
 
 
 def main():
-   init_idx = 16
+   init_idx = 0
    species = ['birch', 'birch', 'birch', 'conifer']
    should_view = False
    ignore_list = []

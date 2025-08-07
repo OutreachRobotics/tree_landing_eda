@@ -45,8 +45,10 @@ def add_pcl(_df, _idx, _should_view):
                 str(False).lower()
             ]
         run_pcl(args)
+
         pcl_csv = pd.read_csv(os.path.join(config.OUTPUTS_PATH, str(_idx), config.PCL_CSV))
         pcl_data.append(pcl_csv.iloc[0].to_dict())
 
     df_pcl = pd.DataFrame(pcl_data)
+
     return pd.concat([_df, df_pcl], axis=1)

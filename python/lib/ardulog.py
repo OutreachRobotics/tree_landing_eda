@@ -293,7 +293,6 @@ def save_landing_cloud(_idx, _should_filter: bool=True):
     return landings
 
 def add_ardulog(_df, _idx):
-    df_ard = pd.DataFrame()
     landings = save_landing_cloud(_idx)
 
     df_ard = pd.DataFrame({

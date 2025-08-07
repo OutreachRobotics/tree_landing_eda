@@ -7,7 +7,7 @@ import os
 import pandas as pd
 import seaborn as sns
 
-def analyze_multicollinearity(_filepath: str):
+def analyze_multicollinearity(_filepath: str, _ignore_list: list[str] = []):
     """
     Loads data from a CSV and computes multicollinearity diagnostics.
 
@@ -30,6 +30,7 @@ def analyze_multicollinearity(_filepath: str):
     # Select only numeric columns for correlation calculation
     ignore_list = config.IGNORE_LIST.copy()
     ignore_list.extend(['success','specie'])
+    ignore_list.extend(_ignore_list)
     df_to_analyze = df.dropna().drop(columns=ignore_list, errors='ignore')
 
     corr_matrix = df_to_analyze.corr()
@@ -70,7 +71,7 @@ def analyze_multicollinearity(_filepath: str):
     print("VIF > 5 or 10: High correlation (this threshold is a rule of thumb)")
     print("A VIF of infinity (inf) means perfect collinearity (e.g., one variable is derived from another).")
 
-def plot_pair_plot(_filepath: str):
+def plot_pair_plot(_filepath: str, _ignore_list: list[str] = []):
     """
     Generates and displays a pair plot (scatter plot matrix) for numeric variables.
     
@@ -86,6 +87,7 @@ def plot_pair_plot(_filepath: str):
     print("\n--- 2. Generating Pair Plot ---")
     ignore_list = config.IGNORE_LIST.copy()
     ignore_list.extend(['specie'])
+    ignore_list.extend(_ignore_list)
     df_to_plot = df.dropna().drop(columns=ignore_list, errors='ignore')
 
     if df_to_plot.shape[1] < 2:
@@ -129,5 +131,10 @@ def plot_pair_plot(_filepath: str):
 
 
 if __name__ == '__main__':
-    analyze_multicollinearity(os.path.join(config.OUTPUTS_PATH, config.OUTPUT_CSV))
-    plot_pair_plot(os.path.join(config.OUTPUTS_PATH, config.OUTPUT_CSV))
+    ignore_list = [
+        'Curvature_PC1','Curvature_PC2','Gaussian_Curvature',
+        'Distance_Top','Distance_Tree_Center_2D','Distance_Tree_Highest_Point_2D'
+    ]
+        
+    analyze_multicollinearity(os.path.join(config.OUTPUTS_PATH, config.OUTPUT_CSV), ignore_list)
+    plot_pair_plot(os.path.join(config.OUTPUTS_PATH, config.OUTPUT_CSV), ignore_list)

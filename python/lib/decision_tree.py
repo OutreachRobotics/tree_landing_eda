@@ -6,7 +6,7 @@ import dtreeviz
 import pandas as pd
 import os
 
-def decision_tree(_ignore_list: list[str] = []):
+def decision_tree(_ignore_list: list[str] = [], _depth: int = 3):
     output_csv = pd.read_csv(os.path.join(config.OUTPUTS_PATH, config.OUTPUT_CSV))
     raw_len = len(output_csv)
 
@@ -33,7 +33,7 @@ def decision_tree(_ignore_list: list[str] = []):
 
     y = output_csv['success']
     X = output_csv.drop(ignore_list, axis=1)
-    clf = tree.DecisionTreeClassifier(max_depth=3)
+    clf = tree.DecisionTreeClassifier(max_depth=_depth)
     clf = clf.fit(X.values, y.values)
 
     viz_model = dtreeviz.model(clf,
@@ -45,10 +45,22 @@ def decision_tree(_ignore_list: list[str] = []):
 
     v = viz_model.view(fontname='DejaVu Sans')
     v.save(os.path.join(config.OUTPUTS_PATH, config.DECISIONTREE_SVG))
+    print(f"Saved decision tree to {os.path.join(config.OUTPUTS_PATH, config.DECISIONTREE_SVG)}")
+
+    importances = clf.feature_importances_
+    feature_importance_df = pd.DataFrame({'feature': X.columns, 'importance': importances})
+    print(feature_importance_df.sort_values(by='importance', ascending=False))
 
 
 def main():
-    decision_tree()
+    ignore_list = [
+        'Curvature_PC1','Curvature_PC2','Gaussian_Curvature',
+        'Distance_Top','Distance_Tree_Center_2D','Distance_Tree_Highest_Point_2D',
+        'Distance_Tree_Center_3D','Distance_Tree_Highest_Point_3D',
+    ]
+    ignore_list.extend(['Density','Mean_Curvature','Standard_Deviation','Slope','Tree_Major_Diameter'])
+    # ignore_list.extend(['Density'])
+    decision_tree(ignore_list, 4)
 
 if __name__=='__main__':
     main()
