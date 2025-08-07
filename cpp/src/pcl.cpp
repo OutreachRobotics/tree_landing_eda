@@ -14,12 +14,12 @@ struct InputValues {
 void saveToCSV(
     const std::string& _filename,
     const pcl::PrincipalCurvatures& _curvatures,
-    const pcl_tools::BoundingBox _treeBB,
+    const pcl_tools::BoundingBox& _treeBB,
     const float _density,
     const float _slope,
     const float _stdDev,
     const float _distTop,
-    const std::vector<std::pair<float, float>>& _distsOfInterest)
+    const std::vector<std::vector<float>>& _distsOfInterest)
 {
     // Open the file for writing
     std::ofstream file;
@@ -34,7 +34,8 @@ void saveToCSV(
     file << "Curvature_PC1,Curvature_PC2,Mean_Curvature,Gaussian_Curvature,"
          << "Tree_Major_Diameter,Tree_Minor_Diameter,"
          << "Density,Slope,Standard_Deviation,Distance_Top,"
-         << "Distance_Tree_Center_2D,Distance_Tree_Highest_Point_2D,Distance_Tree_Center_3D,Distance_Tree_Highest_Point_3D\n";
+         << "Distance_Tree_Center_2D,Distance_Tree_Center_3D,Ratio_Tree_Center_2D,Ratio_Tree_Center_3D,"
+         << "Distance_Tree_Highest_Point_2D,Distance_Tree_Highest_Point_3D,Ratio_Tree_Highest_Point_2D,Ratio_Tree_Highest_Point_3D\n";
 
     // Write data
     file << _curvatures.pc1 << "," << _curvatures.pc2 << "," << (_curvatures.pc1 + _curvatures.pc2) / 2.0f << "," << _curvatures.pc1 * _curvatures.pc2 << ","
@@ -45,9 +46,16 @@ void saveToCSV(
          << _distTop << ",";
 
 
-    for (size_t i = 0; i < _distsOfInterest.size(); ++i)
+    for(size_t i = 0; i < _distsOfInterest.size(); ++i)
     {
-        file << _distsOfInterest[i].first << "," << _distsOfInterest[i].second;
+        for(size_t j = 0; j < _distsOfInterest[i].size(); ++j)
+        {
+            file << _distsOfInterest[i][j];
+
+            if (j < _distsOfInterest[i].size() - 1) {
+                file << ",";
+            }
+        }
         if (i < _distsOfInterest.size() - 1) {
             file << ",";
         }
@@ -74,10 +82,12 @@ void saveToCSV(const std::string& _filename)
         std::numeric_limits<float>::quiet_NaN(),
         std::numeric_limits<float>::quiet_NaN(),
         std::numeric_limits<float>::quiet_NaN(),
-        std::vector<std::pair<float, float>>({
+        std::vector<std::vector<float>>({
             {std::numeric_limits<float>::quiet_NaN(),
+            std::numeric_limits<float>::quiet_NaN(),
             std::numeric_limits<float>::quiet_NaN()},
             {std::numeric_limits<float>::quiet_NaN(),
+            std::numeric_limits<float>::quiet_NaN(),
             std::numeric_limits<float>::quiet_NaN()}
         })
     );
@@ -104,12 +114,13 @@ void computeFeatures(
     float stdDev = pcl_tools::computeStandardDeviation(_landingSurfaceCloud, coef);
     float distTop = highestPoint.z - _landingPoint.z;
 
-    std::vector<std::pair<float, float>> distsOfInterest = pcl_tools::computeDistToPointsOfInterest(
+    std::vector<std::vector<float>> distsOfInterest = pcl_tools::computeDistToPointsOfInterest(
         _landingPoint, 
         std::vector<pcl::PointXYZRGB>({
             treeCenterPoint,
             highestPoint
-        })
+        }),
+        treeBB
     );
 
     saveToCSV(_inputValues.output_csv_path, curvatures, treeBB, density, slope, stdDev, distTop, distsOfInterest);
@@ -216,10 +227,10 @@ int main(int argc, char* argv[])
         pcl_tools::colorSegmentedPoints(landingCloud, pcl::RGB(0,255,0));
         pcl_tools::colorSegmentedPoints(landingSurfaceCloud, pcl::RGB(0,0,255));
         // pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{ogCloud, clusterCloud});
-        pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{ogCloud, landingCloud, treeCloud, landingSurfaceCloud});
+        // pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{ogCloud, landingCloud, treeCloud, landingSurfaceCloud});
         // pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{surfaceCloud, landingSurfaceCloud});
         // pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{surfaceCloud, treeCloud});
-        // pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{segCloud});
+        pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{segCloud});
     }
 
     return 0;
