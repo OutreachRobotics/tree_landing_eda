@@ -97,7 +97,7 @@ def viz(_idx, _show_all: bool = True):
 
 def main():
     viz(0, True)
-    # viz_logs(0)
+    # viz_logs(100)
 
 if __name__=="__main__":
     main()

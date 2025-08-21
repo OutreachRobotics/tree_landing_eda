@@ -20,12 +20,11 @@ import config
 
 
 def main():
-   init_idx = 0
-   species = ['birch', 'birch', 'birch', 'conifer']
+   idx_list = list(range(15))
    should_view = False
    ignore_list = []
 
-   generate_csv(init_idx, species, should_view)
+   generate_csv(idx_list, should_view)
    combine_csv()
    decision_tree(ignore_list)
 

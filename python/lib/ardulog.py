@@ -107,7 +107,7 @@ def run_ardulog(_idx):
         landings_list.append(extract_landings(dfs_mockup, landing_timestamps_f, False))
 
     local_landings_list = run_origin(
-        os.path.join(origin_path),
+        origin_path,
         np.vstack(landings_list),
         should_compensate
     )

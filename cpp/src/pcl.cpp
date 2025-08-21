@@ -131,26 +131,31 @@ int main(int argc, char* argv[])
     // std::cout << "Number of args received: " << argc << "\n";
     InputValues inputValues;
 
-    // inputValues.ply_file_path = "/home/docker/tree_landing_eda/data/inputs/16/rtabmap_cloud.ply";
-    // inputValues.output_csv_path = "/home/docker/tree_landing_eda/data/outputs/16/output_pcl.csv";
-    // inputValues.landing_x = -96.0; // /16
-    // inputValues.landing_y = -14.0; // /16
-    // inputValues.landing_z = 20.0; // /16
-    // inputValues.ply_file_path = "/home/docker/tree_landing_eda/data/inputs/17/rtabmap_cloud.ply";
-    // inputValues.output_csv_path = "/home/docker/tree_landing_eda/data/outputs/17/output_pcl.csv";
-    // inputValues.landing_x = -80.0; // /17
-    // inputValues.landing_y = -19.0; // /17
-    // inputValues.landing_z = 18.5; // /17
-    // inputValues.ply_file_path = "/home/docker/tree_landing_eda/data/inputs/18/rtabmap_cloud.ply";
-    // inputValues.output_csv_path = "/home/docker/tree_landing_eda/data/outputs/18/output_pcl.csv";
-    // inputValues.landing_x = -40.0; // /18
-    // inputValues.landing_y = -39.0; // /18
-    // inputValues.landing_z = 18.0; // /18
-    inputValues.ply_file_path = "/home/docker/tree_landing_eda/data/inputs/19/rtabmap_cloud.ply";
-    inputValues.output_csv_path = "/home/docker/tree_landing_eda/data/outputs/19/output_pcl.csv";
-    inputValues.landing_x = 0.0; // /19
-    inputValues.landing_y = -75.0; // /19
-    inputValues.landing_z = 21.0; // /19
+    // inputValues.ply_file_path = "/home/docker/tree_landing_eda/data/inputs/0/rtabmap_cloud.ply";
+    // inputValues.output_csv_path = "/home/docker/tree_landing_eda/data/outputs/0/output_pcl.csv";
+    // inputValues.landing_x = -96.0; // /0
+    // inputValues.landing_y = -14.0; // /0
+    // inputValues.landing_z = 20.0; // /0
+    // inputValues.ply_file_path = "/home/docker/tree_landing_eda/data/inputs/no_landings/0/rtabmap_cloud.ply";
+    // inputValues.output_csv_path = "/home/docker/tree_landing_eda/data/outputs/no_landings/0/output_pcl.csv";
+    // inputValues.landing_x = -80.0; // /no_landings 0
+    // inputValues.landing_y = -19.0; // /no_landings 0
+    // inputValues.landing_z = 18.5; // /no_landings 0
+    // inputValues.ply_file_path = "/home/docker/tree_landing_eda/data/inputs/1/rtabmap_cloud.ply";
+    // inputValues.output_csv_path = "/home/docker/tree_landing_eda/data/outputs/1/output_pcl.csv";
+    // inputValues.landing_x = -40.0; // /1
+    // inputValues.landing_y = -39.0; // /1
+    // inputValues.landing_z = 18.0; // /1
+    // inputValues.ply_file_path = "/home/docker/tree_landing_eda/data/inputs/2/rtabmap_cloud.ply";
+    // inputValues.output_csv_path = "/home/docker/tree_landing_eda/data/outputs/2/output_pcl.csv";
+    // inputValues.landing_x = 0.0; // /2
+    // inputValues.landing_y = -75.0; // /2
+    // inputValues.landing_z = 21.0; // /2
+    inputValues.ply_file_path = "/home/docker/tree_landing_eda/data/inputs/archive/25/rtabmap_cloud.ply";
+    inputValues.output_csv_path = "/home/docker/tree_landing_eda/data/outputs/archive/25/output_pcl.csv";
+    inputValues.landing_x = 0.0; // /25
+    inputValues.landing_y = 0.0; // /25
+    inputValues.landing_z = 1.1; // /25
 
     inputValues.should_view = true;
 
