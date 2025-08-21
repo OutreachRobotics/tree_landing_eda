@@ -1,5 +1,6 @@
 from ardupilot_log_reader.reader import Ardupilot
 from geo_proj import get_local_coord, get_home, get_origin
+from scipy.spatial import KDTree
 from scipy.spatial.distance import cdist
 
 import bisect
@@ -144,16 +145,15 @@ def run_origin(_filepath_origin, _landings, _should_compensate: bool = True):
 
     return local_landings
 
-def run_project_alt(_filepath_rtabmap, _landings, _radius = 0.1):
-    pcd = o3d.io.read_point_cloud(_filepath_rtabmap)
-    points = np.asarray(pcd.points)
+def run_project_alt(_pcd, _landings, _radius = 0.1):
+    points = np.asarray(_pcd.points)
     highest_z = np.full(len(_landings), np.nan)  # Default to NaN if no points found
     diff_z = np.full(len(_landings), 0.0)  # Default to NaN if no points found
     
-    for i, coord in enumerate(_landings):
+    for i, landing in enumerate(_landings):
         # Compute squared distances (faster than Euclidean)
-        dx = points[:, 0] - coord[0]
-        dy = points[:, 1] - coord[1]
+        dx = points[:, 0] - landing[0]
+        dy = points[:, 1] - landing[1]
         dist_sq = dx**2 + dy**2  # Ignore Z for radius check
         
         # Filter points within XY radius
@@ -162,28 +162,67 @@ def run_project_alt(_filepath_rtabmap, _landings, _radius = 0.1):
         
         if len(candidates_z) > 0:
             highest_z[i] = np.max(candidates_z)  # Store max Z
-            diff_z[i] = coord[2] - highest_z[i]
+            diff_z[i] = landing[2] - highest_z[i]
     
     # Update Z-coordinates (skip if NaN)
     projected_landings = _landings.copy()
     projected_landings[:, 2] = np.where(np.isnan(highest_z), _landings[:, 2], highest_z)
     projected_landings[:, 5] = _landings[:, 5] + diff_z
+
+    print()
+    print(f"run_project_alt modified {(~np.isnan(highest_z)).sum()} landings out of {len(_landings)} landings")
     
     return projected_landings
 
-def run_bbox_filter(_filepath_rtabmap, _landings, _distance_threshold):
-    pcd = o3d.io.read_point_cloud(_filepath_rtabmap)
-    obb = pcd.get_minimal_oriented_bounding_box()
+def run_bbox_filter(_pcd, _landings, _distance_threshold):
+    obb = _pcd.get_minimal_oriented_bounding_box()
 
     grown_extent = obb.extent + [_distance_threshold, _distance_threshold, 999] # Ignore Z
     grown_bbox = o3d.geometry.OrientedBoundingBox(obb.center, obb.R, grown_extent)
     points_to_check = o3d.utility.Vector3dVector(_landings[:, :3])
     indices_inside = grown_bbox.get_point_indices_within_bounding_box(points_to_check)
     filtered_landings = np.asarray(_landings)[indices_inside]
+
+    print()
+    print(f"run_bbox_filter removed {len(_landings) - len(filtered_landings)} landings out of {len(_landings)} landings")
     
     return filtered_landings
 
+def run_void_success_filter(_pcd, _landings, _radius, _min_points):
+    # Filters success points from neighboring trees (not in current point cloud)
+    points = np.asarray(_pcd.points)
+    filtered_landings = _landings.copy()
+
+    kdtree = KDTree(points)
+
+    keep_mask = np.ones(len(_landings), dtype=bool)
+
+    for i, landing in enumerate(_landings):
+        is_success = landing[-1] == 1
+
+        # Only check successful landings; we always keep failed ones
+        if is_success:
+            # Find the number of neighbors within the radius for the current landing point
+            # kdtree.query_ball_point is extremely fast for this.
+            neighbors_indices = kdtree.query_ball_point(landing[:3], r=_radius)
+            num_neighbors = len(neighbors_indices)
+
+            print(f"num_neighbors: {num_neighbors}")
+
+            # If a successful landing has too few neighbors, mark it for removal
+            if num_neighbors < _min_points:
+                keep_mask[i] = False # Mark this row to be removed
+
+    # After the loop, create the new array using the boolean mask in a single step
+    filtered_landings = _landings[keep_mask]
+
+    print()
+    print(f"run_void_success_filter removed {len(_landings) - len(filtered_landings)} landings out of {len(_landings)} landings")
+
+    return filtered_landings
+
 def run_angle_filter(_landings, _max_angle):
+    print()
     print('Angles: ')
     print(_landings[:, -3:-1])
 
@@ -192,6 +231,9 @@ def run_angle_filter(_landings, _max_angle):
     angles_mask = np.any(np.abs(landings_filtered[:, -3:-1]) > _max_angle, axis=1)
     rows_to_flip_mask = success_mask & angles_mask
     landings_filtered[rows_to_flip_mask, -1] = False
+
+    print()
+    print(f"run_angle_filter modified {rows_to_flip_mask.sum()} landings out of {len(_landings)} landings")
 
     return landings_filtered
 
@@ -222,6 +264,10 @@ def run_overlap_filter(_landings, _min_dist):
     filtered_landings_f = overlap_filter(_landings[~success_mask], _min_dist)
     filtered_landings = np.concatenate((filtered_landings_s, filtered_landings_f), axis=0)
 
+    print()
+    print(f"run_overlap_filter removed {len(_landings[success_mask]) - len(filtered_landings_s)} successful landings out of {len(_landings[success_mask])} successful landings")
+    print(f"run_overlap_filter removed {len(_landings[~success_mask]) - len(filtered_landings_f)} failed landings out of {len(_landings[~success_mask])} failed landings")
+
     return filtered_landings
 
 def run_filtered_ardulog(_idx, _should_filter: bool=True):
@@ -234,30 +280,39 @@ def run_filtered_ardulog(_idx, _should_filter: bool=True):
 
     if _should_filter:
         DRONE_RADIUS = 1.5
+        pcd = o3d.io.read_point_cloud(os.path.join(config.INPUTS_PATH, str(_idx), config.RTABMAP_CLOUD_PLY))
+
+        landings_bbox = run_bbox_filter(
+            pcd,
+            landings,
+            0.0
+        )
 
         PROJECTION_RADIUS = 0.3
         landings_proj = run_project_alt(
-            os.path.join(config.INPUTS_PATH, str(_idx), config.RTABMAP_CLOUD_PLY),
-            landings,
+            pcd,
+            landings_bbox,
             PROJECTION_RADIUS
         )
 
-        landings_bbox = run_bbox_filter(
-            os.path.join(config.INPUTS_PATH, str(_idx), config.RTABMAP_CLOUD_PLY),
+        MIN_POINTS = 300
+        landings_void_success = run_void_success_filter(
+            pcd,
             landings_proj,
-            0.0
+            DRONE_RADIUS,
+            MIN_POINTS
         )
 
         MAX_ANGLE = 45.0
         landings_angle = run_angle_filter(
-            landings_bbox,
+            landings_void_success,
             MAX_ANGLE
         )
 
         # OVERLAP_DIST = 0.3
         landings_overlap = run_overlap_filter(
             landings_angle,
-            DRONE_RADIUS/2.0
+            DRONE_RADIUS/3.0
         )
 
         if landings_overlap.size != 0:
