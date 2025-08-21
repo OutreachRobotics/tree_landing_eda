@@ -111,7 +111,7 @@ def run_ardulog(_idx):
         should_compensate
     )
 
-    return local_landings_list
+    return local_landings_list # Column titles: local_coord_x, local_coord_y, local_coord_z, latitudes, longitudes, alt, roll, pitch, success_flags
 
 def run_home(_filepath_home, _coords_s, _coords_f):
     coord_home = get_home(_filepath_home)
@@ -144,12 +144,13 @@ def run_origin(_filepath_origin, _landings, _should_compensate: bool = True):
 
     return local_landings
 
-def get_projected_alt(_coords, _points, _radius=0.8):
-    coords = np.array(_coords)
-    points = np.array(_points)
-    highest_z = np.full(len(_coords), np.nan)  # Default to NaN if no points found
+def run_project_alt(_filepath_rtabmap, _landings, _radius = 0.1):
+    pcd = o3d.io.read_point_cloud(_filepath_rtabmap)
+    points = np.asarray(pcd.points)
+    highest_z = np.full(len(_landings), np.nan)  # Default to NaN if no points found
+    diff_z = np.full(len(_landings), 0.0)  # Default to NaN if no points found
     
-    for i, coord in enumerate(_coords):
+    for i, coord in enumerate(_landings):
         # Compute squared distances (faster than Euclidean)
         dx = points[:, 0] - coord[0]
         dy = points[:, 1] - coord[1]
@@ -161,20 +162,14 @@ def get_projected_alt(_coords, _points, _radius=0.8):
         
         if len(candidates_z) > 0:
             highest_z[i] = np.max(candidates_z)  # Store max Z
+            diff_z[i] = coord[2] - highest_z[i]
     
     # Update Z-coordinates (skip if NaN)
-    coords[:, 2] = np.where(np.isnan(highest_z), coords[:, 2], highest_z)
+    projected_landings = _landings.copy()
+    projected_landings[:, 2] = np.where(np.isnan(highest_z), _landings[:, 2], highest_z)
+    projected_landings[:, 5] = _landings[:, 5] + diff_z
     
-    return np.array(coords.tolist())
-
-def run_project_alt(_filepath_rtabmap, _local_coords_s, _local_coords_f):
-    pcd = o3d.io.read_point_cloud(_filepath_rtabmap)
-    points = np.asarray(pcd.points)
-
-    local_coords_matched_s = get_projected_alt(_local_coords_s, points)
-    local_coords_matched_f = get_projected_alt(_local_coords_f, points)
-
-    return local_coords_matched_s, local_coords_matched_f
+    return projected_landings
 
 def run_bbox_filter(_filepath_rtabmap, _landings, _distance_threshold):
     pcd = o3d.io.read_point_cloud(_filepath_rtabmap)
@@ -240,9 +235,16 @@ def run_filtered_ardulog(_idx, _should_filter: bool=True):
     if _should_filter:
         DRONE_RADIUS = 1.5
 
-        landings_bbox = run_bbox_filter(
+        PROJECTION_RADIUS = 0.3
+        landings_proj = run_project_alt(
             os.path.join(config.INPUTS_PATH, str(_idx), config.RTABMAP_CLOUD_PLY),
             landings,
+            PROJECTION_RADIUS
+        )
+
+        landings_bbox = run_bbox_filter(
+            os.path.join(config.INPUTS_PATH, str(_idx), config.RTABMAP_CLOUD_PLY),
+            landings_proj,
             0.0
         )
 
