@@ -15,6 +15,7 @@ print(f"Current sys.path: {sys.path}")
 
 from csv_generator import generate_csv, combine_csv
 from decision_tree import decision_tree
+from stats_visualizer import analyze_multicollinearity, plot_pair_plot
 
 import config
 
@@ -22,11 +23,21 @@ import config
 def main():
    idx_list = list(range(15))
    should_view = False
-   ignore_list = ['Density','Mean_Curvature','Gaussian_Curvature']
+   ignore_list_tree = ['Density','Mean_Curvature','Gaussian_Curvature']
+   ignore_list_viz = [
+        'Min_Curvature','Mean_Curvature','Gaussian_Curvature',
+        'Distance_Top','Distance_Tree_Center_2D','Ratio_Tree_Center_2D','Distance_Tree_Center_2D',
+        'Distance_Tree_Highest_Point_2D','Ratio_Tree_Highest_Point_2D',
+        'Distance_Tree_Center_3D','Distance_Tree_Highest_Point_3D',
+        'Tree_Minor_Diameter'
+    ]
 
    generate_csv(idx_list, should_view)
    combine_csv()
-   decision_tree(3, ignore_list)
+   decision_tree(3, ignore_list_tree)
+        
+   analyze_multicollinearity(ignore_list_viz)
+   plot_pair_plot(ignore_list_viz)
 
 if __name__=="__main__":
     main()

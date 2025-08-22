@@ -7,7 +7,7 @@ import os
 import pandas as pd
 import seaborn as sns
 
-def analyze_multicollinearity(_filepath: str, _ignore_list: list[str] = []):
+def analyze_multicollinearity(_ignore_list: list[str] = []):
     """
     Loads data from a CSV and computes multicollinearity diagnostics.
 
@@ -19,9 +19,9 @@ def analyze_multicollinearity(_filepath: str, _ignore_list: list[str] = []):
         filepath (str): The path to the input CSV file.
     """
     try:
-        df = pd.read_csv(_filepath)
+        df = pd.read_csv(os.path.join(config.OUTPUTS_PATH, config.OUTPUT_CSV))
     except FileNotFoundError:
-        print(f"Error: The file was not found at '{_filepath}'")
+        print(f"Error: The file was not found at '{os.path.join(config.OUTPUTS_PATH, config.OUTPUT_CSV)}'")
         return
 
     # --- 1. Correlation Matrix ---
@@ -71,7 +71,7 @@ def analyze_multicollinearity(_filepath: str, _ignore_list: list[str] = []):
     print("VIF > 5 or 10: High correlation (this threshold is a rule of thumb)")
     print("A VIF of infinity (inf) means perfect collinearity (e.g., one variable is derived from another).")
 
-def plot_pair_plot(_filepath: str, _ignore_list: list[str] = []):
+def plot_pair_plot(_ignore_list: list[str] = []):
     """
     Generates and displays a pair plot (scatter plot matrix) for numeric variables.
     
@@ -79,16 +79,16 @@ def plot_pair_plot(_filepath: str, _ignore_list: list[str] = []):
     A perfect task for a relaxing Monday evening.
     """
     try:
-        df = pd.read_csv(_filepath)
+        df = pd.read_csv(os.path.join(config.OUTPUTS_PATH, config.OUTPUT_CSV))
     except FileNotFoundError:
-        print(f"Error: The file was not found at '{_filepath}'")
+        print(f"Error: The file was not found at '{os.path.join(config.OUTPUTS_PATH, config.OUTPUT_CSV)}'")
         return
 
     print("\n--- 2. Generating Pair Plot ---")
     ignore_list = config.IGNORE_LIST.copy()
     ignore_list.extend(['specie'])
     ignore_list.extend(_ignore_list)
-    df_to_plot = df.dropna().drop(columns=ignore_list, errors='ignore')
+    df_to_plot = df.dropna().drop(columns=ignore_list)
 
     if df_to_plot.shape[1] < 2:
         print("Not enough numeric columns to generate a pair plot.")
@@ -124,6 +124,16 @@ def plot_pair_plot(_filepath: str, _ignore_list: list[str] = []):
             palette=outcome_colors,
             diag_kind='kde'
         )
+    
+    # 1. Iterate through all the axes in the pairplot grid
+    for ax in g.axes.flatten():
+        # Check if the axis is not None (for empty spaces in the grid)
+        if ax is not None:
+            # 2. Rotate the x-axis labels
+            ax.set_xlabel(ax.get_xlabel(), rotation=45, horizontalalignment='right')
+            
+            # 3. Rotate the y-axis labels
+            ax.set_ylabel(ax.get_ylabel(), rotation=45, horizontalalignment='right')
         
     g.fig.suptitle(f'Pair Plot Colored by "{hue_column}"', y=1.02)
     plt.tight_layout()
@@ -132,9 +142,12 @@ def plot_pair_plot(_filepath: str, _ignore_list: list[str] = []):
 
 if __name__ == '__main__':
     ignore_list = [
-        'Curvature_PC1','Curvature_PC2','Gaussian_Curvature',
-        'Distance_Top','Distance_Tree_Center_2D','Distance_Tree_Highest_Point_2D'
+        'Min_Curvature','Mean_Curvature','Gaussian_Curvature',
+        'Distance_Top','Distance_Tree_Center_2D','Ratio_Tree_Center_2D','Distance_Tree_Center_2D',
+        'Distance_Tree_Highest_Point_2D','Ratio_Tree_Highest_Point_2D',
+        'Distance_Tree_Center_3D','Distance_Tree_Highest_Point_3D',
+        'Tree_Minor_Diameter'
     ]
         
-    analyze_multicollinearity(os.path.join(config.OUTPUTS_PATH, config.OUTPUT_CSV), ignore_list)
-    plot_pair_plot(os.path.join(config.OUTPUTS_PATH, config.OUTPUT_CSV), ignore_list)
+    analyze_multicollinearity(ignore_list)
+    plot_pair_plot(ignore_list)
