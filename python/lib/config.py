@@ -21,6 +21,7 @@ BOXES_CSV = 'boxes.csv'
 TZKINV_TXT = 'TZKinv.txt'
 OUTPUT_CSV = 'output.csv'
 DECISIONTREE_SVG = 'decisiontree.svg'
+DECISIONTREE_AGGREGATE_SVG = 'decisiontree_aggregate.svg'
 
 IGNORE_LIST = [
     'idx',

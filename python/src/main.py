@@ -22,11 +22,11 @@ import config
 def main():
    idx_list = list(range(15))
    should_view = False
-   ignore_list = []
+   ignore_list = ['Density','Mean_Curvature','Gaussian_Curvature']
 
    generate_csv(idx_list, should_view)
    combine_csv()
-   decision_tree(ignore_list)
+   decision_tree(3, ignore_list)
 
 if __name__=="__main__":
     main()
