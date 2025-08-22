@@ -31,7 +31,7 @@ void saveToCSV(
     }
 
     // Write headers
-    file << "Curvature_PC1,Curvature_PC2,Mean_Curvature,Gaussian_Curvature,"
+    file << "Max_Curvature,Min_Curvature,Mean_Curvature,Gaussian_Curvature,"
          << "Tree_Major_Diameter,Tree_Minor_Diameter,"
          << "Density,Slope,Standard_Deviation,Distance_Top,"
          << "Distance_Tree_Center_2D,Distance_Tree_Center_3D,Ratio_Tree_Center_2D,Ratio_Tree_Center_3D,"
