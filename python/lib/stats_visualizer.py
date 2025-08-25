@@ -7,7 +7,7 @@ import os
 import pandas as pd
 import seaborn as sns
 
-def analyze_multicollinearity(_ignore_list: list[str] = []):
+def analyze_multicollinearity(_ignore_list: list[str] = [], _specie: str = ''):
     """
     Loads data from a CSV and computes multicollinearity diagnostics.
 
@@ -20,6 +20,9 @@ def analyze_multicollinearity(_ignore_list: list[str] = []):
     """
     try:
         df = pd.read_csv(os.path.join(config.OUTPUTS_PATH, config.OUTPUT_CSV))
+        if _specie is not '':
+            mask = df['specie'] == _specie
+            df = df[mask]
     except FileNotFoundError:
         print(f"Error: The file was not found at '{os.path.join(config.OUTPUTS_PATH, config.OUTPUT_CSV)}'")
         return
@@ -71,7 +74,7 @@ def analyze_multicollinearity(_ignore_list: list[str] = []):
     print("VIF > 5 or 10: High correlation (this threshold is a rule of thumb)")
     print("A VIF of infinity (inf) means perfect collinearity (e.g., one variable is derived from another).")
 
-def plot_pair_plot(_ignore_list: list[str] = []):
+def plot_pair_plot(_ignore_list: list[str] = [], _specie: str = ''):
     """
     Generates and displays a pair plot (scatter plot matrix) for numeric variables.
     
@@ -80,6 +83,9 @@ def plot_pair_plot(_ignore_list: list[str] = []):
     """
     try:
         df = pd.read_csv(os.path.join(config.OUTPUTS_PATH, config.OUTPUT_CSV))
+        if _specie is not '':
+            mask = df['specie'] == _specie
+            df = df[mask]
     except FileNotFoundError:
         print(f"Error: The file was not found at '{os.path.join(config.OUTPUTS_PATH, config.OUTPUT_CSV)}'")
         return
@@ -141,6 +147,7 @@ def plot_pair_plot(_ignore_list: list[str] = []):
 
 
 if __name__ == '__main__':
+    specie = 'red_maple'
     ignore_list = [
         'Min_Curvature','Mean_Curvature','Gaussian_Curvature',
         'Distance_Top','Distance_Tree_Center_2D','Ratio_Tree_Center_2D','Distance_Tree_Center_2D',
@@ -148,6 +155,9 @@ if __name__ == '__main__':
         'Distance_Tree_Center_3D','Distance_Tree_Highest_Point_3D',
         'Tree_Minor_Diameter'
     ]
+
+    # analyze_multicollinearity(ignore_list)
+    # plot_pair_plot(ignore_list)
         
-    analyze_multicollinearity(ignore_list)
-    plot_pair_plot(ignore_list)
+    analyze_multicollinearity(ignore_list, specie)
+    plot_pair_plot(ignore_list, specie)
