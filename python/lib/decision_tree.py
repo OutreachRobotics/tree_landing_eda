@@ -58,7 +58,7 @@ def tree_viz(_clf, _X, _y, _output_name):
     viz_model = dtreeviz.model(_clf,
         X_train=_X, y_train=_y,
         feature_names=_X.columns.tolist(),
-        target_name='success',
+        target_name=_y.name,
         class_names=list(_clf.classes_),
     )
 
@@ -67,8 +67,14 @@ def tree_viz(_clf, _X, _y, _output_name):
     print(f"Saved decision tree to {os.path.join(config.OUTPUTS_PATH, _output_name)}")
 
 
-def decision_tree(_depth: int = 3, _ignore_list: list[str] = []):
+def decision_tree(_depth: int = 3, _ignore_list: list[str] = [], _specie: str = ''):
     landings_df = extract_csv(os.path.join(config.OUTPUTS_PATH, config.OUTPUT_CSV))
+
+    filepath = config.DECISIONTREE_SVG
+    if _specie is not '':
+        filepath = f"{_specie}_{config.DECISIONTREE_SVG}"
+        mask = landings_df['specie'] == _specie
+        landings_df = landings_df[mask]
 
     landings_df = pd.get_dummies(landings_df, columns=['specie'], prefix='specie') # REPLACE with One-Hot Encoding using pd.get_dummies()
     
@@ -82,11 +88,17 @@ def decision_tree(_depth: int = 3, _ignore_list: list[str] = []):
     clf = tree.DecisionTreeClassifier(max_depth=_depth)
     clf = clf.fit(X.values, y.values)
 
-    tree_viz(clf, X, y, config.DECISIONTREE_SVG)
+    tree_viz(clf, X, y, filepath)
     print_tree_info(clf, X)
 
-def decision_tree_by_tree(_ignore_list: list[str] = [], _depth: int = 3):
+def decision_tree_by_tree(_depth: int = 3, _specie: str = ''):
     landings_df = extract_csv(os.path.join(config.OUTPUTS_PATH, config.OUTPUT_CSV))
+
+    filepath = config.DECISIONTREE_AGGREGATE_SVG
+    if _specie is not '':
+        filepath = f"{_specie}_{config.DECISIONTREE_AGGREGATE_SVG}"
+        mask = landings_df['specie'] == _specie
+        landings_df = landings_df[mask]
 
     # --- AGGREGATION STEP ---
     # 1. Group by the tree index ('idx')
@@ -119,15 +131,31 @@ def decision_tree_by_tree(_ignore_list: list[str] = [], _depth: int = 3):
     clf = tree.DecisionTreeClassifier(max_depth=_depth, random_state=42)
     clf.fit(X, y)
 
-    tree_viz(clf, X, y, config.DECISIONTREE_AGGREGATE_SVG)
+    tree_viz(clf, X, y, filepath)
     print_tree_info(clf, X)
 
+def generate_decision_trees(_ignore_list: list[str] = [], _specie: str = ''):
+    decision_tree(3, _ignore_list)
+    decision_tree_by_tree(3)
+
+    if _specie == '':
+        landings_df = extract_csv(os.path.join(config.OUTPUTS_PATH, config.OUTPUT_CSV))
+        species = landings_df['specie'].unique()
+
+        for specie in species:
+            decision_tree(3, _ignore_list, specie)
+            decision_tree_by_tree(2, specie)
+
 def main():
+    specie = 'red_maple'
     ignore_list = config.IGNORE_LIST.copy()
     ignore_list.extend(['Density','Mean_Curvature'])
 
     decision_tree(3, ignore_list)
     decision_tree_by_tree(3)
+
+    # decision_tree(3, ignore_list, specie)
+    # decision_tree_by_tree(3, specie)
 
 if __name__=='__main__':
     main()

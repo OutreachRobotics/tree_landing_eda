@@ -14,7 +14,7 @@ print(f"Project root: {project_root}")
 print(f"Current sys.path: {sys.path}")
 
 from csv_generator import generate_csv, combine_csv
-from decision_tree import decision_tree
+from decision_tree import generate_decision_trees
 from stats_visualizer import analyze_multicollinearity, plot_pair_plot
 
 import config
@@ -34,7 +34,7 @@ def main():
 
    generate_csv(idx_list, should_view)
    combine_csv()
-   decision_tree(3, ignore_list_tree)
+   generate_decision_trees(ignore_list_tree)
         
    analyze_multicollinearity(ignore_list_viz)
    plot_pair_plot(ignore_list_viz)
