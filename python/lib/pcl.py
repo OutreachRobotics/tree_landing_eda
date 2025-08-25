@@ -52,3 +52,13 @@ def add_pcl(_df, _idx, _should_view):
     df_pcl = pd.DataFrame(pcl_data)
 
     return pd.concat([_df, df_pcl], axis=1)
+
+def main():
+    idx = 0
+    should_viz = True
+
+    df = pd.read_csv(os.path.join(config.OUTPUTS_PATH, str(idx), config.OUTPUT_CSV))
+    add_pcl(df, idx, should_viz)
+
+if __name__=="__main__":
+    main()
