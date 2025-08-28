@@ -175,10 +175,16 @@ def run_project_alt(_pcd, _landings, _radius = 0.1):
     return projected_landings
 
 def run_bbox_filter(_pcd, _landings, _distance_threshold):
-    obb = _pcd.get_minimal_oriented_bounding_box()
+    pcd_almost_2d = o3d.geometry.PointCloud()
+    points_almost_2d = np.asarray(_pcd.points).copy()
+    noise = np.random.uniform(-0.0001, 0.0001, size=(len(_pcd.points),))
+    points_almost_2d[:, 2] = noise  # Set all Z values to about 0
+    pcd_almost_2d.points = o3d.utility.Vector3dVector(points_almost_2d)
 
-    grown_extent = obb.extent + [_distance_threshold, _distance_threshold, 999] # Ignore Z
-    grown_bbox = o3d.geometry.OrientedBoundingBox(obb.center, obb.R, grown_extent)
+    bbox_2d = pcd_almost_2d.get_minimal_oriented_bounding_box()
+    grown_extent = bbox_2d.extent + [_distance_threshold, _distance_threshold, 999.0] # Ignore Z
+    grown_bbox = o3d.geometry.OrientedBoundingBox(bbox_2d.center, bbox_2d.R, grown_extent)
+
     points_to_check = o3d.utility.Vector3dVector(_landings[:, :3])
     indices_inside = grown_bbox.get_point_indices_within_bounding_box(points_to_check)
     filtered_landings = np.asarray(_landings)[indices_inside]
@@ -188,7 +194,7 @@ def run_bbox_filter(_pcd, _landings, _distance_threshold):
     
     return filtered_landings
 
-def run_void_success_filter(_pcd, _landings, _radius, _min_points):
+def run_missing_points_filter(_pcd, _landings, _radius, _min_points):
     # Filters success points from neighboring trees (not in current point cloud)
     points = np.asarray(_pcd.points)
     filtered_landings = _landings.copy()
@@ -217,7 +223,7 @@ def run_void_success_filter(_pcd, _landings, _radius, _min_points):
     filtered_landings = _landings[keep_mask]
 
     print()
-    print(f"run_void_success_filter removed {len(_landings) - len(filtered_landings)} landings out of {len(_landings)} landings")
+    print(f"run_missing_points_filter removed {len(_landings) - len(filtered_landings)} landings out of {len(_landings)} landings")
 
     return filtered_landings
 
@@ -296,7 +302,7 @@ def run_filtered_ardulog(_idx, _should_filter: bool=True):
         )
 
         MIN_POINTS = 300
-        landings_void_success = run_void_success_filter(
+        landings_empty = run_missing_points_filter(
             pcd,
             landings_proj,
             DRONE_RADIUS,
@@ -305,7 +311,7 @@ def run_filtered_ardulog(_idx, _should_filter: bool=True):
 
         MAX_ANGLE = 45.0
         landings_angle = run_angle_filter(
-            landings_void_success,
+            landings_empty,
             MAX_ANGLE
         )
 

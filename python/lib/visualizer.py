@@ -2,6 +2,7 @@ from ardulog import save_landing_cloud
 from geo_proj import compute_geo_ref_rgb, compute_geo_ref_cloud
 
 import config
+import numpy as np
 import open3d as o3d
 import os
 
@@ -17,10 +18,22 @@ def add_cloud(_vis, _idx):
 
 def add_bbox(_vis, _idx):
     pcd = o3d.io.read_point_cloud(os.path.join(config.INPUTS_PATH, str(_idx), config.RTABMAP_CLOUD_PLY))
-    bbox = pcd.get_minimal_oriented_bounding_box()
-    bbox.color = (1, 0, 0)
-    print(bbox.extent[2])
-    _vis.add_geometry(bbox)
+
+    pcd_2d = o3d.geometry.PointCloud()
+    points_almost_2d = np.asarray(pcd.points).copy()
+    noise = np.random.uniform(-0.0001, 0.0001, size=(len(pcd.points),))
+    points_almost_2d[:, 2] = noise  # Set all Z values to about 0
+    pcd_2d.points = o3d.utility.Vector3dVector(points_almost_2d)
+
+    bbox_2d = pcd_2d.get_minimal_oriented_bounding_box()
+    grown_extent = bbox_2d.extent + [0.0, 0.0, 999.0] # Ignore Z
+    grown_bbox = o3d.geometry.OrientedBoundingBox(bbox_2d.center, bbox_2d.R, grown_extent)
+    grown_bbox.color = (1, 0, 0)
+    print(grown_bbox.extent[2])
+    _vis.add_geometry(grown_bbox)
+    
+    grown_bbox.color = (1, 0, 0)
+    _vis.add_geometry(grown_bbox)
 
 def add_landing_cloud(_vis, _idx):
     pcd = o3d.io.read_point_cloud(os.path.join(config.INPUTS_PATH, str(_idx), config.LANDINGS_CLOUD_PLY))
@@ -96,8 +109,8 @@ def viz(_idx, _show_all: bool = True):
 
 
 def main():
-    viz(0, True)
-    # viz_logs(100)
+    viz(13, True)
+    # viz_logs(103)
 
 if __name__=="__main__":
     main()
