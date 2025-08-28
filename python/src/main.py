@@ -21,7 +21,7 @@ import config
 
 
 def main():
-   idx_list = list(range(15))
+   idx_list = list(range(27))
    should_view = False
    ignore_list_tree = ['Density','Mean_Curvature','Gaussian_Curvature']
    ignore_list_viz = [
