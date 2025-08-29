@@ -149,13 +149,15 @@ def generate_decision_trees(_ignore_list: list[str] = [], _specie: str = ''):
 def main():
     specie = 'red_maple'
     ignore_list = config.IGNORE_LIST.copy()
-    ignore_list.extend(['Density','Mean_Curvature'])
+    ignore_list.extend(['Density','Mean_Curvature','Gaussian_Curvature'])
 
-    decision_tree(3, ignore_list)
-    decision_tree_by_tree(3)
+    # decision_tree(3, ignore_list)
+    # decision_tree_by_tree(3)
 
     # decision_tree(3, ignore_list, specie)
     # decision_tree_by_tree(3, specie)
+
+    generate_decision_trees(ignore_list)
 
 if __name__=='__main__':
     main()

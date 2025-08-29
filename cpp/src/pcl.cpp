@@ -151,11 +151,16 @@ int main(int argc, char* argv[])
     // inputValues.landing_x = 0.0; // /2
     // inputValues.landing_y = -75.0; // /2
     // inputValues.landing_z = 21.0; // /2
-    inputValues.ply_file_path = "/home/docker/tree_landing_eda/data/inputs/archive/25/rtabmap_cloud.ply";
-    inputValues.output_csv_path = "/home/docker/tree_landing_eda/data/outputs/archive/25/output_pcl.csv";
-    inputValues.landing_x = 0.0; // /25
-    inputValues.landing_y = 0.0; // /25
-    inputValues.landing_z = 1.1; // /25
+    // inputValues.ply_file_path = "/home/docker/tree_landing_eda/data/inputs/archive/25/rtabmap_cloud.ply";
+    // inputValues.output_csv_path = "/home/docker/tree_landing_eda/data/outputs/archive/25/output_pcl.csv";
+    // inputValues.landing_x = 0.0; // /25
+    // inputValues.landing_y = 0.0; // /25
+    // inputValues.landing_z = 1.1; // /25
+    inputValues.ply_file_path = "/home/docker/tree_landing_eda/data/inputs/17/rtabmap_cloud.ply";
+    inputValues.output_csv_path = "/home/docker/tree_landing_eda/data/outputs/17/output_pcl.csv";
+    inputValues.landing_x = 0.0; // /17
+    inputValues.landing_y = -45.0; // /17
+    inputValues.landing_z = 15.0; // /17
 
     inputValues.should_view = true;
 
@@ -188,6 +193,7 @@ int main(int argc, char* argv[])
     const float SURFACE_DOWNSAMPLE = 2.0*DOWNSAMPLE;
     const float WSHED_DOWNSAMPLE = 1.2*SURFACE_DOWNSAMPLE;
     const float WSHED_THRESH = 0.95;
+    const float SMOOTH_FACTOR = 2.0;
     const int MEDIAN_KERNEL = 5;
     const int TOP_HAT_KERNEL = 9;
     const float TOP_HAT_AMP = 10.0;
@@ -208,6 +214,7 @@ int main(int argc, char* argv[])
         landingPoint,
         WSHED_DOWNSAMPLE,
         DRONE_RADIUS,
+        SMOOTH_FACTOR,
         MEDIAN_KERNEL,
         TOP_HAT_KERNEL,
         TOP_HAT_AMP,
