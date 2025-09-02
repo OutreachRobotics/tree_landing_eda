@@ -13,13 +13,7 @@ struct InputValues {
 
 void saveToCSV(
     const std::string& _filename,
-    const pcl::PrincipalCurvatures& _curvatures,
-    const pcl_tools::BoundingBox& _treeBB,
-    const float _density,
-    const float _slope,
-    const float _stdDev,
-    const float _distTop,
-    const std::vector<std::vector<float>>& _distsOfInterest)
+    const pcl_tools::Features& _features)
 {
     // Open the file for writing
     std::ofstream file;
@@ -38,25 +32,25 @@ void saveToCSV(
          << "Distance_Tree_Highest_Point_2D,Distance_Tree_Highest_Point_3D,Ratio_Tree_Highest_Point_2D,Ratio_Tree_Highest_Point_3D\n";
 
     // Write data
-    file << _curvatures.pc1 << "," << _curvatures.pc2 << "," << (_curvatures.pc1 + _curvatures.pc2) / 2.0f << "," << _curvatures.pc1 * _curvatures.pc2 << ","
-         << std::max(_treeBB.width, _treeBB.height) << "," << std::min(_treeBB.width, _treeBB.height) << ","
-         << _density << ","
-         << _slope << ","
-         << _stdDev << ","
-         << _distTop << ",";
+    file << _features.curvatures.pc1 << "," << _features.curvatures.pc2 << "," << (_features.curvatures.pc1 + _features.curvatures.pc2) / 2.0f << "," << _features.curvatures.pc1 * _features.curvatures.pc2 << ","
+         << std::max(_features.treeBB.width, _features.treeBB.height) << "," << std::min(_features.treeBB.width, _features.treeBB.height) << ","
+         << _features.density << ","
+         << _features.slope << ","
+         << _features.stdDev << ","
+         << _features.distTop << ",";
 
 
-    for(size_t i = 0; i < _distsOfInterest.size(); ++i)
+    for(size_t i = 0; i < _features.distsOfInterest.size(); ++i)
     {
-        for(size_t j = 0; j < _distsOfInterest[i].size(); ++j)
+        for(size_t j = 0; j < _features.distsOfInterest[i].size(); ++j)
         {
-            file << _distsOfInterest[i][j];
+            file << _features.distsOfInterest[i][j];
 
-            if (j < _distsOfInterest[i].size() - 1) {
+            if (j < _features.distsOfInterest[i].size() - 1) {
                 file << ",";
             }
         }
-        if (i < _distsOfInterest.size() - 1) {
+        if (i < _features.distsOfInterest.size() - 1) {
             file << ",";
         }
     }
@@ -73,56 +67,24 @@ void saveToCSV(const std::string& _filename)
 {
     saveToCSV(
         _filename,
-        pcl::PrincipalCurvatures(
-            std::numeric_limits<float>::quiet_NaN(),
-            std::numeric_limits<float>::quiet_NaN()
-        ),
-        pcl_tools::BoundingBox(),
-        std::numeric_limits<float>::quiet_NaN(),
-        std::numeric_limits<float>::quiet_NaN(),
-        std::numeric_limits<float>::quiet_NaN(),
-        std::numeric_limits<float>::quiet_NaN(),
-        std::vector<std::vector<float>>({
-            {std::numeric_limits<float>::quiet_NaN(),
-            std::numeric_limits<float>::quiet_NaN(),
-            std::numeric_limits<float>::quiet_NaN()},
-            {std::numeric_limits<float>::quiet_NaN(),
-            std::numeric_limits<float>::quiet_NaN(),
-            std::numeric_limits<float>::quiet_NaN()}
-        })
+        pcl_tools::Features()
     );
 }
 
-void computeFeatures(
+void saveFeatures(
     const InputValues& _inputValues,
     const pcl::PointXYZRGB& _landingPoint,
     const pcl::PointCloud<pcl::PointXYZRGB>::Ptr _treeCloud,
     const pcl::PointCloud<pcl::PointXYZRGB>::Ptr _landingSurfaceCloud)
 {
-    pcl_tools::BoundingBox treeBB = pcl_tools::getBB(_treeCloud);
-
-    pcl::PointXYZRGB treeCenterPoint(treeBB.centroid[0], treeBB.centroid[1], 0.0, 255, 255, 255);
-    pcl_tools::projectPoint(_treeCloud, treeCenterPoint);
-
-    pcl::PointXYZRGB highestPoint = pcl_tools::getHighestPoint(_treeCloud);
-
-    pcl::PrincipalCurvatures curvatures = pcl_tools::computeCurvature(_landingSurfaceCloud, _landingPoint, 2*DRONE_RADIUS);
-    float density = pcl_tools::computeSurfaceDensity(_landingSurfaceCloud, DRONE_RADIUS);
-    Eigen::Vector4f coef = pcl_tools::computePlane(_landingSurfaceCloud);
-    float slope = pcl_tools::computePlaneAngle(coef);
-    float stdDev = pcl_tools::computeStandardDeviation(_landingSurfaceCloud, coef);
-    float distTop = highestPoint.z - _landingPoint.z;
-
-    std::vector<std::vector<float>> distsOfInterest = pcl_tools::computeDistToPointsOfInterest(
-        _landingPoint, 
-        std::vector<pcl::PointXYZRGB>({
-            treeCenterPoint,
-            highestPoint
-        }),
-        treeBB
+    pcl_tools::Features features = pcl_tools::computeFeatures(
+        _landingPoint,
+        _treeCloud,
+        _landingSurfaceCloud,
+        DRONE_RADIUS
     );
 
-    saveToCSV(_inputValues.output_csv_path, curvatures, treeBB, density, slope, stdDev, distTop, distsOfInterest);
+    saveToCSV(_inputValues.output_csv_path, features);
 }
 
 int main(int argc, char* argv[])
@@ -210,7 +172,6 @@ int main(int argc, char* argv[])
     pcl::PointXYZRGB landingPoint(inputValues.landing_x, inputValues.landing_y, inputValues.landing_z, 255, 255, 255);
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr treeCloud = pcl_tools::computeWatershed(
         segCloud,
-        landingPoint,
         WSHED_DOWNSAMPLE,
         DRONE_RADIUS,
         SMOOTH_FACTOR,
@@ -218,7 +179,8 @@ int main(int argc, char* argv[])
         TOP_HAT_KERNEL,
         TOP_HAT_AMP,
         PACMAN_SOLIDITY,
-        inputValues.should_view
+        inputValues.should_view,
+        landingPoint
     );
 
     // pcl::PointCloud<pcl::PointXYZRGB>::Ptr landingCloud(new pcl::PointCloud<pcl::PointXYZRGB>(*clusterCloud));
@@ -228,7 +190,7 @@ int main(int argc, char* argv[])
     pcl_tools::extractNeighborCirclePC(landingSurfaceCloud, landingPoint, 2.5*DRONE_RADIUS);
     // pcl::PointCloud<pcl::PointXYZRGB>::Ptr extremeCloud = pcl_tools::extractLocalExtremums(surfaceCloud, DRONE_RADIUS);
 
-    computeFeatures(inputValues, landingPoint, treeCloud, landingSurfaceCloud);
+    saveFeatures(inputValues, landingPoint, treeCloud, landingSurfaceCloud);
 
     if(inputValues.should_view){
         std::cout << "Viewing" << std::endl;
