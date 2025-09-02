@@ -97,7 +97,6 @@ void computeFeatures(
     const InputValues& _inputValues,
     const pcl::PointXYZRGB& _landingPoint,
     const pcl::PointCloud<pcl::PointXYZRGB>::Ptr _treeCloud,
-    const pcl::PointCloud<pcl::PointXYZRGB>::Ptr _landingCloud,
     const pcl::PointCloud<pcl::PointXYZRGB>::Ptr _landingSurfaceCloud)
 {
     pcl_tools::BoundingBox treeBB = pcl_tools::getBB(_treeCloud);
@@ -108,7 +107,7 @@ void computeFeatures(
     pcl::PointXYZRGB highestPoint = pcl_tools::getHighestPoint(_treeCloud);
 
     pcl::PrincipalCurvatures curvatures = pcl_tools::computeCurvature(_landingSurfaceCloud, _landingPoint, 2*DRONE_RADIUS);
-    float density = pcl_tools::computeDensity(_landingCloud, DRONE_RADIUS);
+    float density = pcl_tools::computeSurfaceDensity(_landingSurfaceCloud, DRONE_RADIUS);
     Eigen::Vector4f coef = pcl_tools::computePlane(_landingSurfaceCloud);
     float slope = pcl_tools::computePlaneAngle(coef);
     float stdDev = pcl_tools::computeStandardDeviation(_landingSurfaceCloud, coef);
@@ -193,7 +192,7 @@ int main(int argc, char* argv[])
     const float SURFACE_DOWNSAMPLE = 2.0*DOWNSAMPLE;
     const float WSHED_DOWNSAMPLE = 1.2*SURFACE_DOWNSAMPLE;
     const float WSHED_THRESH = 0.95;
-    const float SMOOTH_FACTOR = 2.0;
+    const float SMOOTH_FACTOR = 2.5;
     const int MEDIAN_KERNEL = 5;
     const int TOP_HAT_KERNEL = 9;
     const float TOP_HAT_AMP = 10.0;
@@ -222,13 +221,14 @@ int main(int argc, char* argv[])
         inputValues.should_view
     );
 
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr landingCloud(new pcl::PointCloud<pcl::PointXYZRGB>(*clusterCloud));
-    pcl_tools::extractNeighborPC(landingCloud, landingPoint, 2.5*DRONE_RADIUS);
+    // pcl::PointCloud<pcl::PointXYZRGB>::Ptr landingCloud(new pcl::PointCloud<pcl::PointXYZRGB>(*clusterCloud));
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr landingSurfaceCloud(new pcl::PointCloud<pcl::PointXYZRGB>(*treeCloud));
-    pcl_tools::extractNeighborPC(landingSurfaceCloud, landingPoint, 2.5*DRONE_RADIUS);
+
+    // pcl_tools::extractNeighborPC(landingCloud, landingPoint, 2.5*DRONE_RADIUS);
+    pcl_tools::extractNeighborCirclePC(landingSurfaceCloud, landingPoint, 2.5*DRONE_RADIUS);
     // pcl::PointCloud<pcl::PointXYZRGB>::Ptr extremeCloud = pcl_tools::extractLocalExtremums(surfaceCloud, DRONE_RADIUS);
 
-    computeFeatures(inputValues, landingPoint, treeCloud, landingCloud, landingSurfaceCloud);
+    computeFeatures(inputValues, landingPoint, treeCloud, landingSurfaceCloud);
 
     if(inputValues.should_view){
         std::cout << "Viewing" << std::endl;
@@ -236,7 +236,7 @@ int main(int argc, char* argv[])
         pcl_tools::colorSegmentedPoints(clusterCloud, pcl::RGB(255,255,0));
         pcl_tools::colorSegmentedPoints(treeCloud, pcl::RGB(255,0,0));
         pcl_tools::colorSegmentedPoints(surfaceCloud, pcl::RGB(255,255,255));
-        pcl_tools::colorSegmentedPoints(landingCloud, pcl::RGB(0,255,0));
+        // pcl_tools::colorSegmentedPoints(landingCloud, pcl::RGB(0,255,0));
         pcl_tools::colorSegmentedPoints(landingSurfaceCloud, pcl::RGB(0,0,255));
         // pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{ogCloud, clusterCloud});
         // pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{ogCloud, landingCloud, treeCloud, landingSurfaceCloud});

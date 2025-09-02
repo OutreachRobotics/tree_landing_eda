@@ -55,8 +55,9 @@ def add_pcl(_df, _idx, _should_view):
 
 def main():
     # Pacman 17 18 20 23 25
-    # Divided trees 26 24 23
-    idx = 18 # 4 6 13 14 15
+    # Divided trees 4 23 24 26
+    # Fused trees 14 18
+    idx = 23 # 6 13 15
     should_viz = True
 
     df = pd.read_csv(os.path.join(config.OUTPUTS_PATH, str(idx), config.OUTPUT_CSV))

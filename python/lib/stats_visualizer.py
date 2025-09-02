@@ -156,8 +156,8 @@ if __name__ == '__main__':
         'Tree_Minor_Diameter'
     ]
 
-    # analyze_multicollinearity(ignore_list)
-    # plot_pair_plot(ignore_list)
+    analyze_multicollinearity(ignore_list)
+    plot_pair_plot(ignore_list)
         
-    analyze_multicollinearity(ignore_list, specie)
-    plot_pair_plot(ignore_list, specie)
+    # analyze_multicollinearity(ignore_list, specie)
+    # plot_pair_plot(ignore_list, specie)
