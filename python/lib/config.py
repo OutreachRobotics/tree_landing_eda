@@ -24,6 +24,10 @@ TZKINV_TXT = 'TZKinv.txt'
 OUTPUT_CSV = 'output.csv'
 DECISIONTREE_SVG = 'decisiontree.svg'
 DECISIONTREE_AGGREGATE_SVG = 'decisiontree_aggregate.svg'
+MULTICOL_MATRIX_PLOT = 'multicolinearity_matrix'
+MULTICOL_MATRIX_PLOT_PNG = f'{MULTICOL_MATRIX_PLOT}.png'
+PAIR_PLOT = 'pair_plot'
+PAIR_PLOT_PNG = f'{PAIR_PLOT}.png'
 
 IGNORE_LIST = [
     'idx',

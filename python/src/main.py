@@ -15,7 +15,7 @@ print(f"Current sys.path: {sys.path}")
 
 from csv_generator import generate_csv, combine_csv
 from decision_tree import generate_decision_trees
-from stats_visualizer import analyze_multicollinearity, plot_pair_plot
+from stats_visualizer import generate_stats_viz
 
 import config
 
@@ -39,8 +39,7 @@ def main():
    generate_decision_trees(ignore_list_tree)
    generate_decision_trees(ignore_list_tree, 'sugar_maple')
         
-   analyze_multicollinearity(ignore_list_viz)
-   plot_pair_plot(ignore_list_viz)
+   generate_stats_viz(ignore_list_viz)
 
 if __name__=="__main__":
     main()

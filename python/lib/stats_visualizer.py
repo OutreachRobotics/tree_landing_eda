@@ -1,3 +1,4 @@
+from decision_tree import get_unique_scales
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 from statsmodels.tools.tools import add_constant
 
@@ -7,7 +8,7 @@ import os
 import pandas as pd
 import seaborn as sns
 
-def analyze_multicollinearity(_ignore_list: list[str] = [], _specie: str = ''):
+def analyze_multicollinearity(_ignore_list: list[str] = [], _specie: str = '', _scale: float = 0.0):
     """
     Loads data from a CSV and computes multicollinearity diagnostics.
 
@@ -29,6 +30,14 @@ def analyze_multicollinearity(_ignore_list: list[str] = [], _specie: str = ''):
 
     # --- 1. Correlation Matrix ---
     print("--- 1. Correlation Matrix Analysis ---")
+
+    scale_suffix = f"_scale_{_scale:.1f}"
+    base_cols = [col for col in df.columns if '_scale_' not in col]
+    scale_cols = [col for col in df.columns if scale_suffix in col]      
+    df_filtered = df[base_cols + scale_cols].copy()
+
+    rename_map = {col: col.replace(scale_suffix, '') for col in scale_cols}
+    df_filtered.rename(columns=rename_map, inplace=True)
     
     # Select only numeric columns for correlation calculation
     ignore_list = config.IGNORE_LIST.copy()
@@ -38,11 +47,11 @@ def analyze_multicollinearity(_ignore_list: list[str] = [], _specie: str = ''):
     cols_to_drop = []
     for pattern in ignore_list:
         # filter(like=...) finds all columns containing the pattern string
-        matching_cols = df.filter(like=pattern).columns
+        matching_cols = df_filtered.filter(like=pattern).columns
         cols_to_drop.extend(matching_cols)
     cols_to_drop = list(set(cols_to_drop))
 
-    df_to_analyze = df.dropna().drop(columns=cols_to_drop, errors='ignore')
+    df_to_analyze = df_filtered.dropna().drop(columns=cols_to_drop, errors='ignore')
 
     corr_matrix = df_to_analyze.corr()
 
@@ -54,7 +63,14 @@ def analyze_multicollinearity(_ignore_list: list[str] = [], _specie: str = ''):
     plt.figure(figsize=(12, 10))
     sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', fmt=".2f")
     plt.title('Correlation Matrix Heatmap')
-    plt.show()
+
+    filepath = os.path.join(config.OUTPUTS_PATH, config.MULTICOL_MATRIX_PLOT_PNG)
+    if _scale != 0.0:
+        scale_suffix = f"_scale_{_scale:.1f}"
+        filepath = os.path.join(config.OUTPUTS_PATH, f'{config.MULTICOL_MATRIX_PLOT}{scale_suffix}.png')
+
+    plt.savefig(filepath) 
+    plt.close()
 
     print("\nInterpretation:")
     print("Look for values close to +1.0 or -1.0 (excluding the main diagonal).")
@@ -82,7 +98,7 @@ def analyze_multicollinearity(_ignore_list: list[str] = [], _specie: str = ''):
     print("VIF > 5 or 10: High correlation (this threshold is a rule of thumb)")
     print("A VIF of infinity (inf) means perfect collinearity (e.g., one variable is derived from another).")
 
-def plot_pair_plot(_ignore_list: list[str] = [], _specie: str = ''):
+def plot_pair_plot(_ignore_list: list[str] = [], _specie: str = '', _scale: float = 0.0):
     """
     Generates and displays a pair plot (scatter plot matrix) for numeric variables.
     
@@ -99,6 +115,15 @@ def plot_pair_plot(_ignore_list: list[str] = [], _specie: str = ''):
         return
 
     print("\n--- 2. Generating Pair Plot ---")
+
+    scale_suffix = f"_scale_{_scale:.1f}"
+    base_cols = [col for col in df.columns if '_scale_' not in col]
+    scale_cols = [col for col in df.columns if scale_suffix in col]      
+    df_filtered = df[base_cols + scale_cols].copy()
+
+    rename_map = {col: col.replace(scale_suffix, '') for col in scale_cols}
+    df_filtered.rename(columns=rename_map, inplace=True)
+
     ignore_list = config.IGNORE_LIST.copy()
     ignore_list.extend(['specie'])
     ignore_list.extend(_ignore_list)
@@ -106,11 +131,11 @@ def plot_pair_plot(_ignore_list: list[str] = [], _specie: str = ''):
     cols_to_drop = []
     for pattern in ignore_list:
         # filter(like=...) finds all columns containing the pattern string
-        matching_cols = df.filter(like=pattern).columns
+        matching_cols = df_filtered.filter(like=pattern).columns
         cols_to_drop.extend(matching_cols)
     cols_to_drop = list(set(cols_to_drop))
 
-    df_to_plot = df.dropna().drop(columns=cols_to_drop)
+    df_to_plot = df_filtered.dropna().drop(columns=cols_to_drop)
 
     if df_to_plot.shape[1] < 2:
         print("Not enough numeric columns to generate a pair plot.")
@@ -159,7 +184,24 @@ def plot_pair_plot(_ignore_list: list[str] = [], _specie: str = ''):
         
     g.fig.suptitle(f'Pair Plot Colored by "{hue_column}"', y=1.02)
     plt.tight_layout()
-    plt.show()
+
+    filepath = os.path.join(config.OUTPUTS_PATH, config.PAIR_PLOT_PNG)
+    if _scale != 0.0:
+        scale_suffix = f"_scale_{_scale:.1f}"
+        filepath = os.path.join(config.OUTPUTS_PATH, f'{config.PAIR_PLOT}{scale_suffix}.png')
+
+    plt.savefig(filepath) 
+    plt.close()
+
+def generate_stats_viz(_ignore_list: list[str] = []):
+    df = pd.read_csv(os.path.join(config.OUTPUTS_PATH, config.OUTPUT_CSV))
+    scales = get_unique_scales(df)
+    print(f"Found scales to analyze: {scales}")
+
+    for scale in scales:
+        print(f"\n{'='*20} ANALYSIS FOR SCALE {scale:.1f} {'='*20}")
+        analyze_multicollinearity(_ignore_list, '', _scale=scale)
+        plot_pair_plot(_ignore_list, '', _scale=scale)
 
 
 if __name__ == '__main__':
@@ -172,8 +214,10 @@ if __name__ == '__main__':
         'Tree_Minor_Diameter'
     ]
 
-    analyze_multicollinearity(ignore_list)
-    plot_pair_plot(ignore_list)
+    # analyze_multicollinearity(ignore_list)
+    # plot_pair_plot(ignore_list)
+
+    generate_stats_viz(ignore_list)
         
     # analyze_multicollinearity(ignore_list, specie)
     # plot_pair_plot(ignore_list, specie)
