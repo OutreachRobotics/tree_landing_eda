@@ -34,7 +34,15 @@ def analyze_multicollinearity(_ignore_list: list[str] = [], _specie: str = ''):
     ignore_list = config.IGNORE_LIST.copy()
     ignore_list.extend(['success','specie'])
     ignore_list.extend(_ignore_list)
-    df_to_analyze = df.dropna().drop(columns=ignore_list, errors='ignore')
+
+    cols_to_drop = []
+    for pattern in ignore_list:
+        # filter(like=...) finds all columns containing the pattern string
+        matching_cols = df.filter(like=pattern).columns
+        cols_to_drop.extend(matching_cols)
+    cols_to_drop = list(set(cols_to_drop))
+
+    df_to_analyze = df.dropna().drop(columns=cols_to_drop, errors='ignore')
 
     corr_matrix = df_to_analyze.corr()
 
@@ -94,7 +102,15 @@ def plot_pair_plot(_ignore_list: list[str] = [], _specie: str = ''):
     ignore_list = config.IGNORE_LIST.copy()
     ignore_list.extend(['specie'])
     ignore_list.extend(_ignore_list)
-    df_to_plot = df.dropna().drop(columns=ignore_list)
+
+    cols_to_drop = []
+    for pattern in ignore_list:
+        # filter(like=...) finds all columns containing the pattern string
+        matching_cols = df.filter(like=pattern).columns
+        cols_to_drop.extend(matching_cols)
+    cols_to_drop = list(set(cols_to_drop))
+
+    df_to_plot = df.dropna().drop(columns=cols_to_drop)
 
     if df_to_plot.shape[1] < 2:
         print("Not enough numeric columns to generate a pair plot.")

@@ -371,3 +371,14 @@ def add_ardulog(_df, _idx):
     })
 
     return pd.concat([_df, df_ard], axis=1)
+
+def main():
+    idx = 17
+    df = pd.DataFrame()
+
+    df = add_ardulog(df, idx)
+    df.to_csv(os.path.join(config.OUTPUTS_PATH, str(idx), config.OUTPUT_CSV), index=False)
+    print(df)
+
+if __name__=="__main__":
+    main()

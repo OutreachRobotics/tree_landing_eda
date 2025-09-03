@@ -83,8 +83,15 @@ def decision_tree(_depth: int = 3, _ignore_list: list[str] = [], _specie: str = 
     if _ignore_list:
         ignore_list.extend(_ignore_list)
 
+    cols_to_drop = []
+    for pattern in ignore_list:
+        # filter(like=...) finds all columns containing the pattern string
+        matching_cols = landings_df.filter(like=pattern).columns
+        cols_to_drop.extend(matching_cols)
+    cols_to_drop = list(set(cols_to_drop))
+
     y = landings_df['success']
-    X = landings_df.drop(ignore_list, axis=1)
+    X = landings_df.drop(cols_to_drop, axis=1)
     clf = tree.DecisionTreeClassifier(max_depth=_depth)
     clf = clf.fit(X.values, y.values)
 
@@ -149,7 +156,7 @@ def generate_decision_trees(_ignore_list: list[str] = [], _specie: str = ''):
 def main():
     specie = 'red_maple'
     ignore_list = config.IGNORE_LIST.copy()
-    ignore_list.extend(['Density','Mean_Curvature','Gaussian_Curvature'])
+    # ignore_list.extend(['Mean_Curvature','Gaussian_Curvature'])
 
     # decision_tree(3, ignore_list)
     # decision_tree_by_tree(3)

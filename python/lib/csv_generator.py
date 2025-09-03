@@ -61,13 +61,15 @@ def generate_csv(_idx_list: list[int]=[], _should_view: bool=False):
             viz(i)
 
 def main():
-    idx_list = list(range(3))
+    # idx_list = list(range(27))
+    idx_list = list([0])
     should_viz = False
 
     pd.set_option('display.max_rows', None)  # Show all rows
     pd.set_option('display.max_columns', None)  # Show all columns
 
     generate_csv(idx_list, should_viz)
+    combine_csv()
 
 
 if __name__=="__main__":
