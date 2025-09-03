@@ -37,6 +37,7 @@ def main():
    generate_csv(idx_list, should_view)
    combine_csv()
    generate_decision_trees(ignore_list_tree)
+   generate_decision_trees(ignore_list_tree, 'sugar_maple')
         
    analyze_multicollinearity(ignore_list_viz)
    plot_pair_plot(ignore_list_viz)

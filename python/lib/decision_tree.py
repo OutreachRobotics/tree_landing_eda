@@ -98,6 +98,51 @@ def decision_tree(_depth: int = 3, _ignore_list: list[str] = [], _specie: str = 
     tree_viz(clf, X, y, filepath)
     print_tree_info(clf, X)
 
+def decision_tree_by_scale(_depth: int = 3, _ignore_list: list[str] = [], _scale: float = 0.0, _specie: str = ''):
+    landings_df = extract_csv(os.path.join(config.OUTPUTS_PATH, config.OUTPUT_CSV))
+
+    scale_suffix = f"_scale_{_scale:.1f}"
+    cols_to_keep = [
+        col for col in landings_df.columns
+        if '_scale_' not in col or scale_suffix in col
+    ]
+    landings_df = landings_df[cols_to_keep]
+
+    base_name, extension = os.path.splitext(config.DECISIONTREE_SVG) # e.g., ('decision_tree', '.svg')
+    filename_parts = [base_name]
+    if _specie:
+        filename_parts.append(_specie)
+    filename_parts.append("scale")
+    filename_parts.append(f"{_scale:.1f}") # Add the formatted scale
+    filepath = "_".join(filename_parts) + extension
+    print(f"Outputting SVG to: {filepath}")
+
+    if _specie is not '':
+        mask = landings_df['specie'] == _specie
+        landings_df = landings_df[mask]
+
+    landings_df = pd.get_dummies(landings_df, columns=['specie'], prefix='specie') # REPLACE with One-Hot Encoding using pd.get_dummies()
+    
+    ignore_list = config.IGNORE_LIST.copy()
+    ignore_list.extend(['success'])
+    if _ignore_list:
+        ignore_list.extend(_ignore_list)
+
+    cols_to_drop = []
+    for pattern in ignore_list:
+        # filter(like=...) finds all columns containing the pattern string
+        matching_cols = landings_df.filter(like=pattern).columns
+        cols_to_drop.extend(matching_cols)
+    cols_to_drop = list(set(cols_to_drop))
+
+    y = landings_df['success']
+    X = landings_df.drop(cols_to_drop, axis=1)
+    clf = tree.DecisionTreeClassifier(max_depth=_depth)
+    clf = clf.fit(X.values, y.values)
+
+    tree_viz(clf, X, y, filepath)
+    print_tree_info(clf, X)
+
 def decision_tree_by_tree(_depth: int = 3, _specie: str = ''):
     landings_df = extract_csv(os.path.join(config.OUTPUTS_PATH, config.OUTPUT_CSV))
 
@@ -141,7 +186,33 @@ def decision_tree_by_tree(_depth: int = 3, _specie: str = ''):
     tree_viz(clf, X, y, filepath)
     print_tree_info(clf, X)
 
-def generate_decision_trees(_ignore_list: list[str] = [], _specie: str = ''):
+def get_unique_scales(df):
+    """
+    Extracts unique scale values from a DataFrame's column names.
+    
+    Args:
+        df (pd.DataFrame): The DataFrame with wide-format data.
+        
+    Returns:
+        list[float]: A sorted list of the unique scales found.
+    """
+    scales = set()  # Use a set to automatically handle duplicates
+    for col in df.columns:
+        if '_scale_' in col:
+            try:
+                # Split 'Density_scale_1.0' -> ['Density', '1.0']
+                scale_str = col.split('_scale_')[-1]
+                # Convert the string '1.0' to the float 1.0 and add to the set
+                scales.add(float(scale_str))
+            except (ValueError, IndexError):
+                # This safely ignores columns that might have '_scale_'
+                # but aren't followed by a valid number.
+                print(f"Warning: Could not parse scale from column: {col}")
+    
+    # Convert the set to a list and sort it for a predictable order
+    return sorted(list(scales))
+
+def generate_decision_trees(_ignore_list: list[str] = [], _specie: str = '', _scale: float = 0.0):
     decision_tree(3, _ignore_list)
     decision_tree_by_tree(3)
 
@@ -152,6 +223,24 @@ def generate_decision_trees(_ignore_list: list[str] = [], _specie: str = ''):
         for specie in species:
             decision_tree(3, _ignore_list, specie)
             decision_tree_by_tree(2, specie)
+    else:
+        decision_tree(3, _ignore_list, _specie)
+        decision_tree_by_tree(2, _specie)
+
+        landings_df = extract_csv(os.path.join(config.OUTPUTS_PATH, config.OUTPUT_CSV))
+        scales = get_unique_scales(landings_df)
+
+        for scale in scales:
+            decision_tree_by_scale(3, _ignore_list, scale, _specie)
+
+    if _scale == 0.0:
+        landings_df = extract_csv(os.path.join(config.OUTPUTS_PATH, config.OUTPUT_CSV))
+        scales = get_unique_scales(landings_df)
+
+        for scale in scales:
+            decision_tree_by_scale(3, _ignore_list, scale)
+    else:
+        decision_tree_by_scale(3, _ignore_list, _scale)
 
 def main():
     specie = 'red_maple'
@@ -165,6 +254,7 @@ def main():
     # decision_tree_by_tree(3, specie)
 
     generate_decision_trees(ignore_list)
+    generate_decision_trees(ignore_list, 'sugar_maple')
 
 if __name__=='__main__':
     main()

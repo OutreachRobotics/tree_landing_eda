@@ -186,7 +186,8 @@ int main(int argc, char* argv[])
         return 0;
     }
 
-    const std::vector<float> LANDING_ZONE_FACTORS = {1.0, 2.0, 3.0};
+    // const std::vector<float> LANDING_ZONE_FACTORS = {1.0, 2.0, 3.0};
+    const std::vector<float> LANDING_ZONE_FACTORS = {0.5, 1.0, 1.5, 2.0, 2.5, 3.0};
     const int MIN_LZ_POINTS = 20;
     const float DOWNSAMPLE = DRONE_RADIUS/10.0;
     const float MAX_GAP = DRONE_RADIUS/3.0;
