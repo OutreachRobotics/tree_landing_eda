@@ -23,8 +23,7 @@ import config
 def main():
    idx_list = list(range(27))
    should_view = False
-   ignore_list_tree = ['Mean_Curvature',
-                       'Distance_Top','Distance_Tree_Center_2D','Distance_Tree_Center_3D',
+   ignore_list_tree = ['Distance_Top','Distance_Tree_Center_2D','Distance_Tree_Center_3D',
                        'Distance_Tree_Highest_Point_2D','Distance_Tree_Highest_Point_3D']
    ignore_list_viz = [
         'Min_Curvature','Mean_Curvature','Gaussian_Curvature',

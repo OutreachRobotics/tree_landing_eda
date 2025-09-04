@@ -8,6 +8,8 @@ int main(int argc, char* argv[])
     std::string ply_file_path = "/home/docker/tree_landing_eda/data/inputs/17/rtabmap_cloud.ply";
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr ogCloud = pcl_tools::loadPly(ply_file_path);
 
+    const std::vector<float> LANDING_ZONE_FACTORS = {0.5, 1.0, 1.5, 2.0, 2.5, 3.0};
+    const int MIN_LZ_POINTS = 20;
     const float DOWNSAMPLE = DRONE_RADIUS/10.0;
     const float MAX_GAP = DRONE_RADIUS/3.0;
     const float SURFACE_DOWNSAMPLE = 2.0*DOWNSAMPLE;
@@ -40,13 +42,11 @@ int main(int argc, char* argv[])
         should_view
     );
 
-    // pcl::PointCloud<pcl::PointXYZRGB>::Ptr gridCloud = pcl_tools::generateGridCloud(treeCloud, DRONE_RADIUS/2.0);
-
-    // for(auto& point : gridCloud->points){
-    //     pcl::PointCloud<pcl::PointXYZRGB>::Ptr landingSurfaceCloud(new pcl::PointCloud<pcl::PointXYZRGB>(*treeCloud));
-    //     pcl_tools::extractNeighborCirclePC(landingSurfaceCloud, point, 2.5*DRONE_RADIUS);
-    //     pcl_tools::Features features = pcl_tools::computeFeatures(point, treeCloud, landingSurfaceCloud);
-    // }
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr gridCloud = pcl_tools::generateGridCloud(treeCloud, DRONE_RADIUS);
+    std::vector<std::vector<pcl_tools::Features>> scaledFeaturesList;
+    for(const auto& LANDING_ZONE_FACTOR : LANDING_ZONE_FACTORS) {
+        scaledFeaturesList.push_back(pcl_tools::computeFeaturesList(treeCloud, gridCloud, DRONE_RADIUS, LANDING_ZONE_FACTOR, MIN_LZ_POINTS));
+    }
 
     if(should_view){
         std::cout << "Viewing" << std::endl;
@@ -54,10 +54,11 @@ int main(int argc, char* argv[])
         pcl_tools::colorSegmentedPoints(clusterCloud, pcl::RGB(255,255,0));
         pcl_tools::colorSegmentedPoints(surfaceCloud, pcl::RGB(255,255,255));
         pcl_tools::colorSegmentedPoints(treeCloud, pcl::RGB(255,0,0));
+        pcl_tools::colorSegmentedPoints(gridCloud, pcl::RGB(0,255,0));
         // pcl_tools::colorSegmentedPoints(landingSurfaceCloud, pcl::RGB(0,0,255));
         // pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{ogCloud, clusterCloud});
         // pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{surfaceCloud, landingSurfaceCloud});
-        pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{surfaceCloud, treeCloud});
+        pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{surfaceCloud, treeCloud, gridCloud});
         // pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{segCloud});
     }
 
