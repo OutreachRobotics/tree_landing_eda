@@ -43,10 +43,69 @@ int main(int argc, char* argv[])
     );
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr gridCloud = pcl_tools::generateGridCloud(treeCloud, DRONE_RADIUS);
-    std::vector<std::vector<pcl_tools::Features>> scaledFeaturesList;
+    std::vector<std::vector<pcl_tools::Features>> scaled_features_list;
+    // Eigen::MatrixXd scaled_features_list(LANDING_ZONE_FACTORS.size(), gridCloud->size());
     for(const auto& LANDING_ZONE_FACTOR : LANDING_ZONE_FACTORS) {
-        scaledFeaturesList.push_back(pcl_tools::computeFeaturesList(treeCloud, gridCloud, DRONE_RADIUS, LANDING_ZONE_FACTOR, MIN_LZ_POINTS));
+        scaled_features_list.push_back(pcl_tools::computeFeaturesList(treeCloud, gridCloud, DRONE_RADIUS, LANDING_ZONE_FACTOR, MIN_LZ_POINTS));
     }
+
+    std::vector<std::vector<pcl_tools::Features>> scaled_features_list_T;
+    size_t num_rows = scaled_features_list.size();
+    size_t num_cols = scaled_features_list[0].size();
+    scaled_features_list_T.resize(num_cols, std::vector<pcl_tools::Features>(num_rows));
+    for (size_t i = 0; i < num_rows; ++i) {
+        for (size_t j = 0; j < num_cols; ++j) {
+            scaled_features_list_T[j][i] = scaled_features_list[i][j]; 
+        }
+    }
+
+    // struct Features {
+    //     pcl::PrincipalCurvatures curvatures;
+    //     pcl_tools::BoundingBox treeBB;
+    //     float density;
+    //     float slope;
+    //     float stdDev;
+    //     DistsOfInterest distsOfInterest;
+    // };
+
+    // struct DistsOfInterest {
+    //     float distTop;
+
+    //     float distTreeCenter2D;
+    //     float distTreeCenter3D;
+    //     float ratioTreeCenter2D;
+    //     float ratioTreeCenter3D;
+
+    //     float distTreeHighestPoint2D;
+    //     float distTreeHighestPoint3D;
+    //     float ratioTreeHighestPoint2D;
+    //     float ratioTreeHighestPoint3D;
+    // };
+
+    int gridCloudIdx = 0;
+    for(const auto& scaled_features : scaled_features_list_T) {
+        if(scaled_features[0].distsOfInterest.ratioTreeCenter3D < 0.5) {
+            if(scaled_features[1].slope < 30 && scaled_features[1].stdDev < 0.12) {
+            //    scaled_features[1].density < 0.1 && scaled_features[1].curvatures. < 0.1) {
+
+                std::cout << "Landing zone found on idx: " << gridCloudIdx << std::endl;
+                break;
+            }
+            else {
+                std::cout << "Landing zone candidate failed one of the following tests: " << scaled_features[1].slope << std::endl;
+                std::cout << "scaled_features[1].slope < 30: " << scaled_features[1].slope << std::endl;
+                std::cout << "scaled_features[1].stdDev < 0.12: " << scaled_features[1].stdDev << std::endl;
+            }
+        }
+        else {
+            std::cout << "No landing zone found within ratioTreeCenter3D < 0.5" << std::endl;
+            break;
+        }
+        ++gridCloudIdx;
+    }
+
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr selectedLZ(new pcl::PointCloud<pcl::PointXYZRGB>(*treeCloud));
+    pcl_tools::extractNeighborCirclePC(selectedLZ, gridCloud->points[gridCloudIdx], DRONE_RADIUS);
 
     if(should_view){
         std::cout << "Viewing" << std::endl;
@@ -54,11 +113,12 @@ int main(int argc, char* argv[])
         pcl_tools::colorSegmentedPoints(clusterCloud, pcl::RGB(255,255,0));
         pcl_tools::colorSegmentedPoints(surfaceCloud, pcl::RGB(255,255,255));
         pcl_tools::colorSegmentedPoints(treeCloud, pcl::RGB(255,0,0));
-        pcl_tools::colorSegmentedPoints(gridCloud, pcl::RGB(0,255,0));
+        pcl_tools::colorSegmentedPoints(gridCloud, pcl::RGB(0,0,255));
+        pcl_tools::colorSegmentedPoints(selectedLZ, pcl::RGB(0,255,0));
         // pcl_tools::colorSegmentedPoints(landingSurfaceCloud, pcl::RGB(0,0,255));
         // pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{ogCloud, clusterCloud});
         // pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{surfaceCloud, landingSurfaceCloud});
-        pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{surfaceCloud, treeCloud, gridCloud});
+        pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{surfaceCloud, treeCloud, gridCloud, selectedLZ});
         // pcl_tools::view(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>{segCloud});
     }
 

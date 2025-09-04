@@ -247,7 +247,8 @@ def main():
     ignore_list = config.IGNORE_LIST.copy()
     # ignore_list.extend(['Mean_Curvature','Gaussian_Curvature'])
     ignore_list.extend(['Distance_Top','Distance_Tree_Center_2D','Distance_Tree_Center_3D',
-                        'Distance_Tree_Highest_Point_2D','Distance_Tree_Highest_Point_3D'])
+                        'Distance_Tree_Highest_Point_2D','Distance_Tree_Highest_Point_3D',
+                        'scale_0.5','scale_3.0','Slope','Gaussian_Curvature','Min_Curvature'])
 
     # decision_tree(3, ignore_list)
     # decision_tree_by_tree(3)
